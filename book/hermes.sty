@@ -14,8 +14,11 @@
 %             teal   = a dumb question, and its answer
 %             purple = a reflection on something that should bother you
 %             gray   = where the words come from
+%             rose   = an interview question, and an answer to say out loud
 %   Diagrams: each color is a role, the same in every figure.
 % ---------------------------------------------------------------------------
+\definecolor{hfInterview}{HTML}{B0306A}
+\definecolor{hfInterviewBg}{HTML}{FBEFF4}
 \definecolor{hfHistory}{HTML}{B4580A}
 \definecolor{hfHistoryBg}{HTML}{FDF4E7}
 \definecolor{hfConcept}{HTML}{1F5FA8}
@@ -109,6 +112,19 @@
   before upper={\hf@paras{\sffamily\bfseries\footnotesize\color{hfReflect}%
     REFLECTION}\par\smallskip
     {\large\bfseries\color{hfReflect}#2}\par\medskip},
+  #1,
+}
+
+% \begin{interview}{Why not Kafka?} ... \end{interview}
+%   a question an interviewer may ask, and an answer of 60 to 90 seconds
+%   written to be said out loud
+\NewDocumentEnvironment{interview}{m +b}
+  {\hf@keeptogether{hf@interview}{#1}{#2}}{}
+\newtcolorbox{hf@interview}[2][]{
+  hf/box, colback=hfInterviewBg, colframe=hfInterview,
+  before upper={\hf@paras{\sffamily\bfseries\footnotesize\color{hfInterview}%
+    IN THE INTERVIEW}\par\smallskip
+    {\large\bfseries\color{hfInterview}#2}\par\medskip},
   #1,
 }
 

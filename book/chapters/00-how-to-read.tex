@@ -17,13 +17,20 @@ people: the ones who want to know why a thing is the way it is, who would rather
 spend an evening on one page than skim twenty, and who are not satisfied until
 the idea and the history behind it both make sense.
 
-One project runs through the whole book: the import process of a foreign trade
-company. An invoice arrives, someone reads it, someone classifies every item
-under a customs code, and the result goes into the company's ERP. When the
-company won a large new client, doing that by hand meant doubling the customs
-team. The project replaces the inbox with a system: a service that reads
-documents, a service that suggests the customs classification, two event buses
-and a single master that drives each process from start to end, all on AWS.
+One project runs through the whole book: a farmer asks for credit to buy a
+tractor. The proposal arrives with its documents, someone reads them, someone
+analyzes the credit, and if the answer is yes, a contract is issued, the
+installments are scheduled and the money goes to the dealer. Four services do
+the work: one for proposals, one for credit, one for contracts, and a single
+master that drives each proposal from start to end over two event buses. A
+screen in the browser, a login server and two databases complete the picture,
+all of it on AWS.
+
+The shape of this system is not new to me. Between 2023 and 2024, at a foreign
+trade company, I built the same architecture for import processes: services
+that read documents and classify goods, two buses and one master. This book
+rebuilds it on a different business, small enough to read in an afternoon and
+cheap enough to run on AWS for an hour.
 
 Each chapter starts from a decision in that project and asks why the
 technologies we reach for are shaped the way they are. The chapters come in
@@ -45,10 +52,10 @@ something its predecessor got wrong and brought costs of its own. If you know
 the lineage, you know when the idea applies. If you only know the rule, you
 will apply it where it does not belong.
 
-\section*{Five kinds of boxes}
+\section*{Six kinds of boxes}
 
-Stories, concepts, questions, reflections and words are kept apart, so you
-always know which one you are reading.
+Stories, concepts, questions, reflections, words and interview answers are kept
+apart, so you always know which one you are reading.
 
 \begin{history}{year \textperiodcentered{} place}
 An amber box tells a story: who did it, when, and what forced the idea into
@@ -79,6 +86,12 @@ true.
 A gray box says where a word comes from. The origin of a word is not its
 definition, but it often shows what the people who coined it were looking at.
 \end{etymology}
+
+\begin{interview}{a question an interviewer may ask}
+A rose box closes every chapter. It asks a question you may hear in a job
+interview and answers it in sixty to ninety seconds, in plain spoken English,
+the way you would say it across a table. Read it out loud.
+\end{interview}
 
 The text between the boxes is the argument that connects them.
 

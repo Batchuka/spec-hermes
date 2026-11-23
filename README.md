@@ -1,31 +1,26 @@
 # spec-hermes
 
-> Hermes, the Greek god of trade, travelers and messengers, crossed every border carrying messages.
+> Hermes, the Greek god of trade and messengers, crossed every border carrying messages.
 
-A small, runnable reconstruction of two systems I designed at WM Trading, a foreign trade company, between 2023 and 2024. They are sections 1.2 and 1.3 of my [portfolio](https://batchuka.github.io/):
+**Hermes** is a demo of an equipment financing process: a farmer asks for credit to buy a tractor, the proposal and its documents are read, the credit is analyzed, and if the answer is yes a contract is issued and the money goes to the dealer.
 
-- **Invoice to customs classification, without e-mail (2023).** A new client (BYD) was about to multiply the number of invoices. Either we automated the manual process or the customs team had to double. Two Spring Boot microservices did it: **Document Understanding (DU)** reads the documents and **Fiscal Classification (CLF)** suggests the NCM code from the client's previous classifications.
-- **Event buses and a route orchestrator (2023–2024).** The company turned that solution into a product for individual importers: 5,000 processes a day in one marketplace alone. I designed a small, AWS-only architecture modeled on an industrial fieldbus: a **TX bus** and an **RX bus** on EventBridge, a **single master** (the orchestrator) and a protocol of our own.
+Its architecture is the one I designed at WM Trading, a foreign trade company, in 2023–2024 (sections 1.2 and 1.3 of my [portfolio](https://batchuka.github.io/)): domain microservices that do not know each other, a **single master** that drives every process, a **TX bus** for commands and an **RX bus** for answers. The original ran import processes; this one runs financing, small enough to read in an afternoon and cheap enough to run on AWS for an hour.
 
-The real systems are private. This is a demo version, small enough to read in an afternoon, built to explain the decisions behind them.
-
-## What I know today
-
-- I built the original with Java/Spring Boot, Python, SQS, Lambda and EventBridge, and led four developers while doing it.
-- I want to explain every decision in English, from the queue settings to why there is one master.
-- Expensive or private pieces (Textract, Bedrock, the ERP) are stubs behind an interface. Everything runs locally on LocalStack; a real AWS deploy is a bonus.
-
-This changes as I go.
+This hub holds the book, the decisions and the workflow.
 
 ## Repositories
 
-| Repository | Role |
-| --- | --- |
-| [`spec-hermes`](https://github.com/Batchuka/spec-hermes) | this hub: the book, the decisions (`docs/adr/`), practice and the workflow |
-| [`hermes`](https://github.com/Batchuka/hermes) | the code: a Maven monorepo with the orchestrator, the two services, the `eventbus` library, the Python Lambdas and the infrastructure |
-| [`demo-event-driven`](https://github.com/Batchuka/demo-event-driven) | an earlier, HTTP-only take on the orchestrator, kept as a reference |
+| Repository | Role | Stack |
+| --- | --- | --- |
+| [`hermes-orchestrator`](https://github.com/Batchuka/hermes-orchestrator) | the master: runs the route of each proposal | Spring Boot, MySQL, EventBridge, SQS |
+| [`hermes-proposals`](https://github.com/Batchuka/hermes-proposals) | proposals and their documents | Spring Boot, MongoDB |
+| [`hermes-credit`](https://github.com/Batchuka/hermes-credit) | credit analysis: score, limit, suggested decision | Spring Boot, MySQL |
+| [`hermes-contracts`](https://github.com/Batchuka/hermes-contracts) | contract, installments (Price or SAC), disbursement | Spring Boot, MySQL |
+| [`hermes-web`](https://github.com/Batchuka/hermes-web) | the screen | Angular, Keycloak login |
+| [`hermes-infra`](https://github.com/Batchuka/hermes-infra) | local stack and the AWS environment | Docker Compose, LocalStack, Keycloak, Terraform |
+| [`spec-hermes`](https://github.com/Batchuka/spec-hermes) | this hub: book, ADRs, practice, workflow | LaTeX, Markdown |
 
-Issues live in each repository and on the Hermes project board. How I work is in [`WORKFLOW.md`](WORKFLOW.md).
+Issues live in each repository and on the [Hermes project](https://github.com/users/Batchuka/projects/13). How I work is in [`WORKFLOW.md`](WORKFLOW.md).
 
 ## Architecture
 
@@ -33,34 +28,32 @@ Decisions are in [`docs/adr/`](docs/adr/). The overall architecture is [ADR 0001
 
 ```mermaid
 flowchart LR
-    biz(["business<br/>curl · web screen"])
-    erp[("ERP stub<br/>outside AWS")]
-    subgraph aws["AWS · LocalStack in dev"]
-        orch["orchestrator<br/>Spring Boot · the master"]
-        tx{{"EventBridge<br/>TX bus"}}
-        rx{{"EventBridge<br/>RX bus"}}
-        rxq[["SQS rx-queue + DLQ"]]
-        ltx["λ dispatchers<br/>Python · ETL and request"]
-        du["document-understanding<br/>Spring Boot + eventbus"]
-        clf["fiscal-classification<br/>Spring Boot + eventbus"]
-        exq[["SQS extraction-queue"]]
-        lre["λ regex-extractor<br/>Python"]
-        tex["Textract (stub)"]
-        bed["Bedrock (stub)"]
-        sns(("SNS alerts"))
-    end
-    biz -->|"POST route"| orch
-    orch -->|command| tx --> ltx
-    ltx -->|REST| du & clf
-    du -->|simple| exq --> lre -->|result| du
-    du -->|complex| tex
-    clf --> bed
-    clf -->|persists| erp
-    du & clf -->|"event (AOP)"| rx --> rxq
-    rxq -->|"long polling + backoff"| orch
-    orch -->|"step nobody owns"| sns
+    user(["user"])
+    cf["CloudFront<br/>HTTPS"]
+    web["Angular<br/>S3"]
+    alb["ALB"]
+    kc["Keycloak"]
+    orch["orchestrator<br/>the master"]
+    prop["proposals"]
+    cred["credit"]
+    con["contracts"]
+    tx{{"EventBridge TX"}}
+    rx{{"EventBridge RX"}}
+    cq[["SQS: one command<br/>queue per service"]]
+    rxq[["SQS hermes-rx"]]
+    mysql[("RDS MySQL<br/>one database per service")]
+    mongo[("MongoDB Atlas M0")]
+
+    user --> cf --> web
+    cf -->|"/api, /auth"| alb --> orch & prop & cred & con & kc
+    orch -->|command| tx --> cq --> prop & cred & con
+    prop & cred & con -->|event| rx --> rxq --> orch
+    orch & cred & con & kc --> mysql
+    prop --> mongo
 ```
 
-## Book
+## Book and practice
 
-[`book/`](book/): why the technologies in this project are the way they are. Practice exercises tied to the code are in [`practice/hackerrank/`](practice/hackerrank/).
+- [`book/`](book/): why the technologies in this project are the way they are. Every chapter ends with interview questions answered out loud.
+- [`practice/english/`](practice/english/): one English practice kit per chapter.
+- [`practice/hackerrank/`](practice/hackerrank/): typical coding exercises, each tied to a part of the code.

@@ -1,10 +1,10 @@
 {
   "permissions": {
     "deny": [
-      "Edit(//c/Projetos/hermes/hermes/**/src/**)",
-      "Write(//c/Projetos/hermes/hermes/**/src/**)",
-      "Edit(//c/Projetos/hermes/hermes/lambdas/**)",
-      "Write(//c/Projetos/hermes/hermes/lambdas/**)"
+      "Edit(//c/Projetos/hermes/hermes-*/src/**)",
+      "Write(//c/Projetos/hermes/hermes-*/src/**)",
+      "Edit(//c/Projetos/hermes/hermes-infra/terraform/**)",
+      "Write(//c/Projetos/hermes/hermes-infra/terraform/**)"
     ]
   }
 }
