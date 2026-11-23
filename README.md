@@ -25,7 +25,7 @@ This changes as I go.
 | [`hermes`](https://github.com/Batchuka/hermes) | the code: a Maven monorepo with the orchestrator, the two services, the `eventbus` library, the Python Lambdas and the infrastructure |
 | [`demo-event-driven`](https://github.com/Batchuka/demo-event-driven) | an earlier, HTTP-only take on the orchestrator, kept as a reference |
 
-Issues live in each repository and on the Hermes project board. How I work is in [`WORKFLOW.md`](WORKFLOW.md).
+Issues live in each repository and on the [Hermes project](https://github.com/users/Batchuka/projects/13). How I work is in [`WORKFLOW.md`](WORKFLOW.md).
 
 ## Architecture
 

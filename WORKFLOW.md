@@ -16,7 +16,7 @@ Toda issue começa com uma **v0 ingênua**, escrita como um iniciante escreveria
 
 ## GitHub Flow
 
-1. Uma branch por issue: `<tipo>/<n>-<resumo>`, por exemplo `feat/2-rx-polling`.
+1. Uma branch por issue: `<tipo>/<n>-<resumo>`, por exemplo `feat/1-rx-polling`.
 2. Um commit por versão.
 3. Um comentário na issue por versão: o que quebrou, por quê e o que mudou. Em inglês, porque serve de treino.
 4. PR em inglês, merge sem squash, para o histórico de versões ficar no `main`. A descrição do PR conta a história da issue em parágrafos curtos, que eu consiga ler em voz alta.
@@ -32,7 +32,7 @@ v1 of the RX consumer: short polling hit SQS in a tight loop and spent one
 request per empty answer. WaitTimeSeconds=20 lets SQS hold the request until a
 message arrives.
 
-Refs #2
+Refs #1
 ```
 
 ## HackerRank
