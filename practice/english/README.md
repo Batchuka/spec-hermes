@@ -12,3 +12,4 @@ Every kit has the same five sections:
 
 | Kit | Chapter | Status |
 | --- | --- | --- |
+| [`00-adr-0001.md`](00-adr-0001.md) | ADR 0001, the overall architecture | ready |
