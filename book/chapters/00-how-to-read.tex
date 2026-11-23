@@ -2,65 +2,65 @@
 \addcontentsline{toc}{chapter}{How to Read This Book}
 \markboth{HOW TO READ THIS BOOK}{HOW TO READ THIS BOOK}
 
-\begin{flushright}
-\itshape Lasciate ogne fretta, voi ch'intrate.\\[2pt]
-\upshape\small not quite Dante, \emph{Inferno}, canto III
-\end{flushright}
+This book explains how a small financing system works, piece by piece. You do
+not need to know the technologies before you start. Every time a new word
+shows up, the book stops and tells you what it means.
 
-Over the gate of Hell, Dante wrote: abandon all hope, ye who enter here. This
-book asks for less: abandon all haste.
+Think of it as a senior developer sitting next to you on your first week. They
+show you the system, explain why each part is there, and answer the questions
+you were too shy to ask.
 
-This is a dense book. It is packed with names, dates, versions and code, and
-almost every page leans on something said before it. It assumes you will stop,
-go back a few pages, check a date, and come back. It was written for curious
-people: the ones who want to know why a thing is the way it is, who would rather
-spend an evening on one page than skim twenty, and who are not satisfied until
-the idea and the history behind it both make sense.
+\section*{The project}
 
-One project runs through the whole book: a farmer asks for credit to buy a
-tractor. The proposal arrives with its documents, someone reads them, someone
-analyzes the credit, and if the answer is yes, a contract is issued, the
-installments are scheduled and the money goes to the dealer. Four services do
-the work: one for proposals, one for credit, one for contracts, and a single
-master that drives each proposal from start to end over two event buses. A
-screen in the browser, a login server and two databases complete the picture,
-all of it on AWS.
+One project runs through the whole book. A farmer wants to buy a tractor and
+asks for credit to pay for it. That request is called a \emph{proposal}.
 
-The shape of this system is not new to me. Between 2023 and 2024, at a foreign
-trade company, I built the same architecture for import processes: services
-that read documents and classify goods, two buses and one master. This book
-rebuilds it on a different business, small enough to read in an afternoon and
-cheap enough to run on AWS for an hour.
+Here is what happens to the proposal:
 
-Each chapter starts from a decision in that project and asks why the
-technologies we reach for are shaped the way they are. The chapters come in
-the order the project reaches each subject. None of them replaces the
-documentation of the tools it discusses. Each one goes as far as the project
-needs and stops there.
+\begin{enumerate}
+  \item The farmer sends the proposal with some documents: the invoice of the
+        tractor and a proof of income.
+  \item Someone reads the documents and checks the data.
+  \item Someone analyzes the credit: can this farmer pay?
+  \item If the answer is yes, a contract is issued. The contract says how many
+        installments the farmer will pay, and how much each one is.
+  \item The money goes to the dealer who sells the tractor.
+\end{enumerate}
 
-\section*{Every idea has a parent}
+In the project, each of these jobs belongs to a program of its own. We call
+each program a \emph{service}. There are three of them: \emph{proposals},
+\emph{credit} and \emph{contracts}. A fourth service, the
+\emph{orchestrator}, tells the other three what to do and in which order. A
+screen in the browser, a login server and two databases complete the system.
+Everything runs on AWS, Amazon's cloud.
 
-No technology in this book showed up because it was elegant. The German
-industry wrote Profibus in the late 1980s because every machine on a factory
-floor was wired to the controller with its own cable, and one shared bus with
-one master was cheaper and easier to reason about. Hector Garcia-Molina and
-Kenneth Salem described sagas in 1987 because a long transaction that holds its
-locks for hours blocks everyone else. Gregor Kiczales and his group at Xerox
-PARC named aspect-oriented programming in 1997 because logging, transactions
-and security ended up copied into every method of a program. Each idea fixed
-something its predecessor got wrong and brought costs of its own. If you know
-the lineage, you know when the idea applies. If you only know the rule, you
-will apply it where it does not belong.
+The design of this system is not new to me. Between 2023 and 2024, at a
+foreign trade company, I built the same design for import processes. This
+book rebuilds it on a financing process, small enough to read in an afternoon
+and cheap enough to run on AWS for an hour.
+
+\section*{Why the book tells history}
+
+Every technology in this book was invented to fix a problem. If you know the
+problem, you know when to use the technology, and when not to.
+
+Take message queues, the subject of Chapter~2. Before queues, one program
+called another directly. If the second program was down, the call failed and
+the work was lost. A queue sits between the two programs and holds the work
+until the second one is ready. Once you know that, you will not reach for a
+queue when nothing can be lost in the first place.
+
+So each chapter starts with the problem, then shows who solved it, when, and
+how. Only then does it show the solution in the project.
 
 \section*{Six kinds of boxes}
 
-Stories, concepts, questions, reflections, words and interview answers are kept
-apart, so you always know which one you are reading.
+The book uses colored boxes. Each color means one kind of content, so you
+always know what you are reading.
 
 \begin{history}{year \textperiodcentered{} place}
-An amber box tells a story: who did it, when, and what forced the idea into
-existence. The people, the dates and the problems in it are real. No invented
-incidents.
+An amber box tells a story: who invented something, when, and what problem
+forced them to do it. The people, the dates and the problems are real.
 \end{history}
 
 \begin{concept}{name}
@@ -72,81 +72,70 @@ A blue box defines an idea you will need again. It always ends the same way:
 \end{concept}
 
 \begin{question}{the question you were embarrassed to ask}
-A teal box asks the question that occurs to anyone reading the paragraph above
-it and that nobody asks out loud, and then answers it.
+A teal box asks the simple question that anyone could have after reading the
+paragraph above it, and then answers it.
 \end{question}
 
 \begin{reflection}{the thing that should bother you}
-A purple box stops on a statement that sounds absurd, or that the text just said
-in passing as if it were obvious, and works out what it means and why it is
-true.
+A purple box stops on something that sounds strange or was said too quickly,
+and explains why it is true.
 \end{reflection}
 
 \begin{etymology}
 A gray box says where a word comes from. The origin of a word is not its
-definition, but it often shows what the people who coined it were looking at.
+meaning, but it often shows what the people who named it were thinking about.
 \end{etymology}
 
 \begin{interview}{a question an interviewer may ask}
 A rose box closes every chapter. It asks a question you may hear in a job
-interview and answers it in sixty to ninety seconds, in plain spoken English,
-the way you would say it across a table. Read it out loud.
+interview and answers it in sixty to ninety seconds, in plain spoken English.
+Read it out loud.
 \end{interview}
-
-The text between the boxes is the argument that connects them.
 
 \section*{Code}
 
-The examples are in Java and Python, the languages of the services and of the
-functions in this project. Source code sits on a light gray background and what
-a command printed sits on a dark one. Every example was run before it went into
-the book, and the output shown is the output it gave. There is as little code
-as possible: a block appears only when it shows something a sentence can't.
+The examples are in Java, the language of the services. Source code sits on a
+light gray background. What a command printed sits on a dark background.
+Every example was run before it went into the book, and the output you see is
+the output it gave. There is as little code as possible: a block appears only
+when it shows something a sentence can't.
 
 \section*{Diagrams}
 
-Colors in diagrams are roles, not decoration. A color means the same thing in
-every figure of the book.
+In the diagrams, each color is a role, not a decoration. A color means the
+same thing in every figure of the book.
 
 \begin{center}
 \begin{tikzpicture}
   \matrix[column sep=6mm, row sep=4mm, nodes={anchor=center}] {
     \node[hf/source, minimum width=26mm] {source}; &
-    \node[hf/note, anchor=west, text width=95mm, align=left] {where the data comes from: a document, a sender, an outside system}; \\
+    \node[hf/note, anchor=west, text width=95mm, align=left] {where the data comes from: a document, a person, an outside system}; \\
     \node[hf/reader, minimum width=26mm] {service}; &
-    \node[hf/note, anchor=west, text width=95mm, align=left] {a program that does the work: a service, a function, a screen}; \\
+    \node[hf/note, anchor=west, text width=95mm, align=left] {a program that does the work: a service, a screen}; \\
     \node[hf/store, minimum width=26mm] {store}; &
-    \node[hf/note, anchor=west, text width=95mm, align=left] {where data is kept: a database, a bucket, the ERP}; \\
+    \node[hf/note, anchor=west, text width=95mm, align=left] {where data is kept: a database, a file storage}; \\
     \node[hf/bus, minimum width=26mm] {middle}; &
-    \node[hf/note, anchor=west, text width=95mm, align=left] {something that sits between: a queue, a bus, a protocol}; \\
+    \node[hf/note, anchor=west, text width=95mm, align=left] {something that sits between programs: a queue, a bus}; \\
     \draw[hf/ask] (-13mm,0) -- (13mm,0); &
-    \node[hf/note, anchor=west, text width=95mm, align=left] {asks: a request, a poll}; \\
+    \node[hf/note, anchor=west, text width=95mm, align=left] {asks: a request}; \\
     \draw[hf/answer] (-13mm,0) -- (13mm,0); &
     \node[hf/note, anchor=west, text width=95mm, align=left] {answers a request}; \\
     \draw[hf/push] (-13mm,0) -- (13mm,0); &
-    \node[hf/note, anchor=west, text width=95mm, align=left] {pushes: an event, sent without being asked}; \\
+    \node[hf/note, anchor=west, text width=95mm, align=left] {pushes: a message sent without being asked}; \\
     \draw[hf/save] (-13mm,0) -- (13mm,0); &
     \node[hf/note, anchor=west, text width=95mm, align=left] {keeps: written to storage}; \\
     \draw[hf/pain, dashed] (-13mm,0) -- (13mm,0); &
-    \node[hf/note, anchor=west, text width=95mm, align=left, text=hfAlert] {a cost, a pain, or something forbidden}; \\
+    \node[hf/note, anchor=west, text width=95mm, align=left, text=hfAlert] {a cost, a problem, or something you must not do}; \\
   };
 \end{tikzpicture}
 \end{center}
 
-\section*{Exact facts, firm opinions}
+\section*{Facts and opinions}
 
-This is not a scientific book, and it does not pretend to be one.
+The facts in this book are checked. When it says who did something and when,
+that is what happened.
 
-The history is checked. When the book says who did something and when, that is
-what happened.
-
-The opinions are another matter. When a framework survives only because the
-tutorials keep teaching it, the book says so. When a message broker adds nothing
-to a system with one reader, the book says it adds nothing, not that it is ``of
-limited value in some contexts''. Sometimes that will be unfair or imprecise,
-and we accept that.
-
-A reader who leaves with a position can argue with it, refine it, or throw it
-away. A reader who leaves with ``it depends'' has nothing to hold. Between being
-precise and leaving you with a position, this book prefers to give you a
-position.
+The opinions are clear on purpose. When a tool adds nothing to a system, the
+book says it adds nothing. It does not say ``it depends''. You may disagree,
+and that is fine: a clear opinion is something you can argue with. ``It
+depends'' gives you nothing to hold.

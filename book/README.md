@@ -21,7 +21,7 @@ Definido em [hermes.sty](hermes.sty), a mesma família de caixas dos livros do H
 
 A ordem segue a prioridade da entrevista (P0 primeiro). Cada capítulo tem, num comentário no `.tex`, o que está planejado para ele.
 
-0. [How to Read This Book](chapters/00-how-to-read.tex): o aviso de que o livro é denso, o projeto (o financiamento de um trator) e a origem dele na WM, a genealogia, as seis caixas, código e a legenda das cores.
+0. [How to Read This Book](chapters/00-how-to-read.tex): o livro como um sênior ao lado de quem começa, o projeto passo a passo (o financiamento de um trator) e a origem dele na WM, por que o livro conta história (o exemplo da fila), as seis caixas, código, a legenda das cores e fatos e opiniões.
 1. [The Map](chapters/01-the-map.tex): *P0, a escrever.* O processo de ponta a ponta, os quatro serviços, o mestre e os dois barramentos.
 2. [Queues](chapters/02-queues.tex): *P0, a escrever.* SQS, at-least-once, long polling, visibility timeout, idempotência, DLQ, backoff; SQS, SNS e Kafka.
 3. [One Master](chapters/03-one-master.tex): *P0, a escrever.* O modelo do fieldbus, EventBridge, orquestração e coreografia, sagas e compensação.
