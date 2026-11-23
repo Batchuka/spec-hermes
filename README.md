@@ -4,7 +4,7 @@
 
 **Hermes** is a demo of an equipment financing process: a farmer asks for credit to buy a tractor, the proposal and its documents are read, the credit is analyzed, and if the answer is yes a contract is issued and the money goes to the dealer.
 
-Its architecture is the one I designed at WM Trading, a foreign trade company, in 2023–2024 (sections 1.2 and 1.3 of my [portfolio](https://batchuka.github.io/)): domain microservices that do not know each other, a **single master** that drives every process, a **TX bus** for commands and an **RX bus** for answers. The original ran import processes; this one runs financing, small enough to read in an afternoon and cheap enough to run on AWS for an hour.
+Its architecture follows the way I worked at WM Trading, a foreign trade company, in 2023–2024 (sections 1.2 and 1.3 of my [portfolio](https://batchuka.github.io/)): one independent service per business domain, each with its own code, its own deploy and its own data, and one front end that serves all of them. The services are built first and on their own. How they are connected into one process comes later, when the business asks for it. The original ran import processes; this one runs financing, small enough to read in an afternoon and cheap enough to run on AWS for an hour.
 
 This hub holds the book, the decisions and the workflow.
 
@@ -24,33 +24,23 @@ Issues live in each repository and on the [Hermes project](https://github.com/us
 
 ## Architecture
 
-Decisions are in [`docs/adr/`](docs/adr/). The overall architecture is [ADR 0001](docs/adr/0001-architecture.md).
+Decisions are in [`docs/adr/`](docs/adr/). The starting point is [ADR 0001](docs/adr/0001-architecture.md): three independent services, one per business domain, one front end for all of them, and one schema per service in a single database instance.
 
 ```mermaid
 flowchart LR
     user(["user"])
-    cf["CloudFront<br/>HTTPS"]
-    web["Angular<br/>S3"]
-    alb["ALB"]
-    kc["Keycloak"]
-    orch["orchestrator<br/>the master"]
-    prop["proposals"]
-    cred["credit"]
-    con["contracts"]
-    tx{{"EventBridge TX"}}
-    rx{{"EventBridge RX"}}
-    cq[["SQS: one command<br/>queue per service"]]
-    rxq[["SQS hermes-rx"]]
-    mysql[("RDS MySQL<br/>one database per service")]
-    mongo[("MongoDB Atlas M0")]
+    web["Angular<br/>static front end"]
+    prop["proposals<br/>REST API"]
+    cred["credit<br/>REST API"]
+    con["contracts<br/>REST API"]
+    db[("database instance<br/>one schema per service")]
 
-    user --> cf --> web
-    cf -->|"/api, /auth"| alb --> orch & prop & cred & con & kc
-    orch -->|command| tx --> cq --> prop & cred & con
-    prop & cred & con -->|event| rx --> rxq --> orch
-    orch & cred & con & kc --> mysql
-    prop --> mongo
+    user --> web
+    web --> prop & cred & con
+    prop & cred & con --> db
 ```
+
+The services do not know each other. The layer that connects them into one process (the orchestrator and the buses) is a later decision. It will be recorded in its own ADR and explained in the book.
 
 ## Book and practice
 

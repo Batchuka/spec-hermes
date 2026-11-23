@@ -1,85 +1,80 @@
-# 0001. One master over two event buses
+# 0001. Independent services, one per business domain
 
 Status: accepted · Issue: #1
 
 ## Context
 
-Hermes runs an equipment financing process. A farmer asks for credit to buy a tractor. The proposal arrives with documents (the equipment invoice, proof of income), the credit is analyzed, and if the answer is yes a contract is issued, the installments are scheduled and the money goes to the dealer.
+Hermes runs an equipment financing process. A farmer asks for credit to buy a tractor. The proposal arrives with documents, the credit is analyzed, and if the answer is yes a contract is issued, the installments are scheduled and the money goes to the dealer.
 
-Each step belongs to a different part of the business, with its own rules and its own data:
+The business has clear domains, and each one has its own rules and its own data:
 
-- **proposals** owns the proposal and its documents. Each document type has a different shape.
-- **credit** owns the score, the limit and the decision.
-- **contracts** owns the contract, the installment schedule and the disbursement. It handles money, so it needs transactions.
+- **proposals**: the request for credit and its documents.
+- **credit**: the score, the limit and the decision.
+- **contracts**: the contract, the installments and the disbursement. It handles money, so it needs transactions.
+
+This is how I worked at WM Trading in 2023–2024. The business rules of each domain were closed, so each application could be modeled on its own and still fit the others.
 
 What we need:
 
-- The services must not know about each other. Adding a step must not change the services that already exist.
-- The business declares the steps of each process (a **route**), and the route can change.
-- Someone must always know where every proposal is, and notice a step that nobody answers.
+- Each domain can change, be tested and be deployed without touching the others.
+- Each domain owns its data, and nobody else reads it.
+- The people who use the system see one screen, not three.
 - AWS only, managed services, and cheap enough to run for a demo.
-
-This is the architecture I designed at WM Trading in 2023–2024 for import processes, where one marketplace alone meant 5,000 processes a day. Hermes rebuilds it on a financing process.
 
 ## Decision
 
-We model the platform on an **industrial fieldbus**, like Profibus: one master, many slaves, a shared bus and a protocol of our own.
+We build **three independent services, one per domain, and one web front end that serves all of them.** There is no monolith.
 
 ```mermaid
 flowchart LR
-    user(["user<br/>Angular"])
-    orch["orchestrator<br/>the master"]
-    tx{{"TX bus<br/>EventBridge"}}
-    rx{{"RX bus<br/>EventBridge"}}
-    cq[["one command queue<br/>per service (SQS)"]]
-    rxq[["RX queue<br/>SQS"]]
-    svc["proposals · credit · contracts"]
-    sns(("SNS<br/>alerts"))
+    user(["user"])
+    web["web front end<br/>Angular"]
+    p["proposals<br/>REST API"]
+    c["credit<br/>REST API"]
+    k["contracts<br/>REST API"]
+    db[("one database instance")]
 
-    user -->|"new proposal"| orch
-    orch -->|command| tx -->|"rule by prefix"| cq --> svc
-    svc -->|result| rx --> rxq -->|"long polling"| orch
-    orch -->|"step nobody owns"| sns
+    user --> web
+    web --> p
+    web --> c
+    web --> k
+    p --> db
+    c --> db
+    k --> db
 ```
 
-- **The orchestrator is the only master.** It keeps the routes and the state of every proposal. It sends one command at a time and waits for the answer.
-- **TX bus:** only the master publishes on it. An EventBridge rule matches each command by its prefix (`proposals.`, `credit.`, `contracts.`) and delivers it to that service's command queue.
-- **RX bus:** the services publish their results on it. A rule sends everything to one SQS queue that only the master reads.
-- **Queues, not HTTP calls:** a service that is down loses nothing; the command waits in its queue. Every reader uses long polling, deletes a message only after handling it, and ignores duplicates.
-- **The protocol** is a small envelope on every message: `eventId`, `correlationId` (the proposal id), `step`, `source`, `time` and the payload.
-- **A step nobody owns:** if no answer comes within a timeout, the master alerts the team on SNS.
-- **Data:** each service owns its database. `proposals` uses MongoDB; `credit`, `contracts` and the orchestrator use MySQL, one database each on one RDS instance.
-- **Identity:** Keycloak. The Angular screen logs in with OIDC and PKCE; every service checks the JWT.
+- **One service per domain.** Each one is its own application, with its own repository, its own build and its own deploy. Each exposes a REST API.
+- **One front end for all.** A static Angular app, served from a CDN, that calls the APIs. Nothing is rendered on the server (a Jamstack style).
+- **One schema per service, in a single database instance.** Each service creates and migrates only its own schema, and never queries another one. One instance keeps the demo cheap, and the schemas can move to separate instances later without changing any service.
+- **The services do not know about each other.** If a business rule needs data from another domain, we decide how to get it when the need appears, and record it in a new ADR.
+
+This ADR does not choose how the services will be connected into one process. That comes later, when the business asks for it.
 
 ## Alternatives
 
-- **Choreography**, where each service reacts to the events of the others. Nobody knows where a proposal is, and changing the route means changing services.
-- **Direct REST calls between services.** Every service needs to know the others, and every caller needs its own retries and timeouts.
-- **Step Functions.** It is also an orchestrator, and it would work. We keep the master in Spring because the route is data declared by the business, not a state machine deployed with the code.
-- **Kafka (MSK).** A log is the right tool for high throughput and replay. Here it means a cluster to run and pay for, for a few events per second.
+- **A monolith.** One application and one database. It is the simplest to start, but every domain would change and deploy together, and the boundaries would erode over time.
+- **A shared database with shared tables.** Services would be coupled through the tables, and a change in one would break the others.
+- **One front end per service.** Users would move between three screens. We keep one, because the users work across the domains.
 
 ## Consequences
 
-- A new service joins with one queue, one rule and the envelope. The other services do not change.
-- There is one place to see every proposal.
-- The master is a single point of failure. Its state lives in MySQL, and the queues keep the messages while it is down.
-- SQS and EventBridge deliver **at least once**, so every handler must be idempotent.
-- Each hop adds some latency. That is fine for a credit process that takes minutes.
-- Credit approved but contract failed means undoing a step: the master runs a compensation (a saga), not a database rollback.
+- A domain can change, scale and deploy alone.
+- The boundaries are explicit: the only way into a domain is its API.
+- There are more things to run than in a monolith: three services, one front end, one database instance.
+- A process that crosses domains, such as "approve the credit and then issue the contract", is not solved here. It will need its own decision.
+- Cross-domain data cannot be joined in SQL. That is a price of the boundaries.
 
 ## How I say it
 
-> At my last company I designed an architecture for import processes, and this project rebuilds it on a financing process. A farmer asks for credit to buy a tractor. Three services do the work: proposals, credit and contracts. They don't know about each other. A fourth service, the orchestrator, is the only master. I took the idea from industrial networks, where I come from: one master and a shared bus. The orchestrator publishes a command on a TX bus in EventBridge. A rule delivers it to the right service's queue. The service does its job and answers on an RX bus, and everything on RX goes to one SQS queue that only the orchestrator reads. So the services stay independent, nothing is lost if one of them is down, and we always know where every proposal is.
+> I designed this system around the business domains. A farmer asks for credit to buy a tractor, and the work is split in three: proposals, credit and contracts. Each one is its own service, with its own code, its own deploy and its own schema in the database, so it's not a monolith. One Angular front end serves the three of them. I did the same thing at my last company: the business rules were clear, so each application could be built alone, and they fit together later. I kept the question of how they talk to each other for a later decision, because it should come from what the business needs.
 
 ## Words
 
 | Word | Meaning here |
 | --- | --- |
-| bus | a shared channel; whoever is interested listens to it |
-| master | the only one allowed to start a conversation on the bus |
-| route | the list of steps of a process, declared by the business |
-| correlation id | the id that ties every message of one proposal together |
-| at-least-once | a message may arrive more than once, but it is never lost |
-| idempotent | doing it twice has the same effect as doing it once |
-| saga | a long process made of local steps, each with a compensation |
-| long polling | the server holds the request until a message arrives or the wait ends |
+| domain | an area of the business with its own rules and its own data |
+| monolith | one application that holds all the domains |
+| microservice | a small application that owns one domain |
+| schema | a named set of tables inside a database instance |
+| Jamstack | a static front end that calls APIs, with no server-side rendering |
+| boundary | the line a domain does not cross: only its API goes out |
