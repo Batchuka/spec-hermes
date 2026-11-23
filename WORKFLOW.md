@@ -27,7 +27,13 @@ A demanda de um setor, no formato de Alistair Cockburn (*Writing Effective Use C
 
 ### Implementação (nos repositórios `hermes-*`)
 
-O título começa pelo caso de uso (`UC-06 · ...`). As versões v0 → vN estão em checklist (veja "Código", abaixo).
+**Os repositórios de código começam vazios.** Não há código nem bootstrap antes de um caso de uso pedir. Uma issue de implementação só nasce quando, trabalhando num UC, a gente entende que precisa daquilo: um banco local, um serviço, uma tela. Nesse momento:
+
+1. Comento no UC o que descobrimos e por que precisamos da issue.
+2. Crio a issue no repositório certo, com o título começando pelo caso de uso (`UC-01 · ...`), um parágrafo no topo com o porquê, e as versões v0 → vN em checklist (veja "Código", abaixo).
+3. Penduro a issue no UC como sub-issue e a coloco no Project, no ato do UC.
+
+Nada de issue para um UC que ainda não chegou.
 
 ### Capítulo (no `spec-hermes`)
 
@@ -46,7 +52,7 @@ Os capítulos andam **em ordem, um por vez, no meu ritmo**, sem chats em paralel
 Modo híbrido:
 
 - **Eu digito a lógica que vou explicar**: Java em `src/` e TypeScript do Angular em `src/app/`. Para o Terraform, eu digito com guia.
-- **O Claude escreve e commita o andaime**: `pom.xml`, `Dockerfile`, CI, `docker-compose`, scripts do LocalStack, realm do Keycloak, `application.yml`, a classe `*Application` vazia. E toda a documentação deste hub.
+- **O andaime também nasce numa issue.** `pom.xml`, `Dockerfile`, CI, `docker-compose` e afins só aparecem quando uma issue precisa deles. O Claude pode escrevê-los e commitá-los dentro dessa issue, se eu pedir. Ele também escreve toda a documentação deste hub.
 - **O Claude guia por versão**: "arquivo:linha hoje está assim → mude para → por quê (1 a 3 linhas)", e como conferir.
 - Toda issue começa numa **v0 ingênua**. Eu rodo, vejo quebrar, e cada versão seguinte corrige **uma** coisa que eu observei.
 
@@ -91,11 +97,7 @@ Tudo lado a lado em `C:\Projetos\hermes\`: `spec-hermes`, `hermes-orchestrator`,
 
 ## Rodar localmente
 
-```powershell
-cd C:\Projetos\hermes\hermes-infra\local; docker compose up -d
-```
-
-Depois, `./mvnw spring-boot:run` em cada app. Os detalhes estão no README do `hermes-infra`.
+Ainda não há nada para rodar. Cada repositório explica como rodar no README que nasce com a primeira issue dele.
 
 ## AWS
 

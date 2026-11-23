@@ -7,7 +7,8 @@ Leia `WORKFLOW.md` antes de qualquer coisa. A entrevista é na quarta, 25/11/202
 ## Código (modo híbrido)
 
 - O usuário digita a lógica: Java em `../hermes-*/src/**` e TypeScript em `../hermes-web/src/app/**`. Não edite esses arquivos; leia o que for preciso para guiar e revisar. O Terraform (`../hermes-infra/terraform/**`) ele também digita, com guia.
-- O Claude pode escrever e commitar o andaime: poms, Dockerfile, CI, `../hermes-infra/local/**`, `application.yml` e a classe `*Application` vazia. E toda a documentação deste hub.
+- **Os repositórios de código começam vazios.** Não crie código, andaime nem issue de implementação antes de um caso de uso pedir. Quando, trabalhando num UC, ficar claro que algo é necessário: comente no UC o que foi descoberto, crie a issue no repositório certo (título `UC-NN · ...`, o porquê no topo, versões em checklist), pendure-a no UC como sub-issue e ponha no Project. Só com o ok do usuário.
+- O andaime (poms, Dockerfile, CI, compose) nasce dentro de uma issue; o Claude pode escrevê-lo se o usuário pedir. A documentação deste hub é do Claude.
 - Guie por versão: "arquivo:linha hoje está assim → mude para → por quê (1 a 3 linhas)", e depois como conferir. Sem teoria na sessão: a teoria vai para o capítulo.
 - Antes de criar qualquer recurso pago na AWS, pergunte. Região `us-east-1`; o ambiente sobe para a demo e desce em seguida.
 
