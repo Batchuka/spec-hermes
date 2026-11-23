@@ -23,8 +23,8 @@ A ordem segue a história do sistema: os atos e os casos de uso (UC) do `spec-he
 
 0. [How to Read This Book](chapters/00-how-to-read.tex): o livro como um sênior ao lado de quem começa, o projeto passo a passo (o financiamento de um trator) e a origem dele na WM, por que o livro conta história (o exemplo da fila), as seis caixas, código, a legenda das cores e fatos e opiniões.
 1. [The Map](chapters/01-the-map.tex): *Ato 1, UC-01 a UC-05, a escrever.* Cada setor pede a sua ferramenta; um serviço por domínio e uma tela; a premissa (Humphrey e YAGNI).
-2. [Anatomy of a Service](chapters/02-anatomy-of-a-service.tex): *Ato 1, UC-02, a escrever.* Microsserviços, Spring Boot, REST, camadas, validação, Spring Data, Flyway, testes.
-3. [Documents](chapters/03-documents.tex): *Ato 1, UC-01, a escrever.* Modelo relacional e de documentos, MongoDB, Atlas.
+2. [Documents](chapters/02-documents.tex): *Ato 1, UC-01, a escrever.* Modelo relacional e de documentos, MongoDB, Atlas.
+3. [Anatomy of a Service](chapters/03-anatomy-of-a-service.tex): *Ato 1, UC-02, a escrever.* Microsserviços, Spring Boot, REST, camadas, validação, Spring Data, Flyway, testes.
 4. [Money in Code](chapters/04-money-in-code.tex): *Ato 1, UC-03 e UC-04, a escrever.* `BigDecimal`, Price e SAC, transações ACID, pagar duas vezes.
 5. [The Screen](chapters/05-the-screen.tex): *Ato 1, UC-05, a escrever.* Angular, uma tela para vários serviços.
 6. [Queues](chapters/06-queues.tex): *Ato 2, UC-06 e UC-07, a escrever.* A primeira integração, ingênua; filas, SQS, SNS, idempotência; a coreografia que nasce sozinha.
