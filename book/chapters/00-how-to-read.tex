@@ -1,0 +1,139 @@
+\chapter*{How to Read This Book}
+\addcontentsline{toc}{chapter}{How to Read This Book}
+\markboth{HOW TO READ THIS BOOK}{HOW TO READ THIS BOOK}
+
+\begin{flushright}
+\itshape Lasciate ogne fretta, voi ch'intrate.\\[2pt]
+\upshape\small not quite Dante, \emph{Inferno}, canto III
+\end{flushright}
+
+Over the gate of Hell, Dante wrote: abandon all hope, ye who enter here. This
+book asks for less: abandon all haste.
+
+This is a dense book. It is packed with names, dates, versions and code, and
+almost every page leans on something said before it. It assumes you will stop,
+go back a few pages, check a date, and come back. It was written for curious
+people: the ones who want to know why a thing is the way it is, who would rather
+spend an evening on one page than skim twenty, and who are not satisfied until
+the idea and the history behind it both make sense.
+
+One project runs through the whole book: the import process of a foreign trade
+company. An invoice arrives, someone reads it, someone classifies every item
+under a customs code, and the result goes into the company's ERP. When the
+company won a large new client, doing that by hand meant doubling the customs
+team. The project replaces the inbox with a system: a service that reads
+documents, a service that suggests the customs classification, two event buses
+and a single master that drives each process from start to end, all on AWS.
+
+Each chapter starts from a decision in that project and asks why the
+technologies we reach for are shaped the way they are. The chapters come in
+the order the project reaches each subject. None of them replaces the
+documentation of the tools it discusses. Each one goes as far as the project
+needs and stops there.
+
+\section*{Every idea has a parent}
+
+No technology in this book showed up because it was elegant. The German
+industry wrote Profibus in the late 1980s because every machine on a factory
+floor was wired to the controller with its own cable, and one shared bus with
+one master was cheaper and easier to reason about. Hector Garcia-Molina and
+Kenneth Salem described sagas in 1987 because a long transaction that holds its
+locks for hours blocks everyone else. Gregor Kiczales and his group at Xerox
+PARC named aspect-oriented programming in 1997 because logging, transactions
+and security ended up copied into every method of a program. Each idea fixed
+something its predecessor got wrong and brought costs of its own. If you know
+the lineage, you know when the idea applies. If you only know the rule, you
+will apply it where it does not belong.
+
+\section*{Five kinds of boxes}
+
+Stories, concepts, questions, reflections and words are kept apart, so you
+always know which one you are reading.
+
+\begin{history}{year \textperiodcentered{} place}
+An amber box tells a story: who did it, when, and what forced the idea into
+existence. The people, the dates and the problems in it are real. No invented
+incidents.
+\end{history}
+
+\begin{concept}{name}
+A blue box defines an idea you will need again. It always ends the same way:
+
+\textbf{What it fixes:} the problem that made the idea worth having.
+
+\textbf{What it costs:} what you give up by using it.
+\end{concept}
+
+\begin{question}{the question you were embarrassed to ask}
+A teal box asks the question that occurs to anyone reading the paragraph above
+it and that nobody asks out loud, and then answers it.
+\end{question}
+
+\begin{reflection}{the thing that should bother you}
+A purple box stops on a statement that sounds absurd, or that the text just said
+in passing as if it were obvious, and works out what it means and why it is
+true.
+\end{reflection}
+
+\begin{etymology}
+A gray box says where a word comes from. The origin of a word is not its
+definition, but it often shows what the people who coined it were looking at.
+\end{etymology}
+
+The text between the boxes is the argument that connects them.
+
+\section*{Code}
+
+The examples are in Java and Python, the languages of the services and of the
+functions in this project. Source code sits on a light gray background and what
+a command printed sits on a dark one. Every example was run before it went into
+the book, and the output shown is the output it gave. There is as little code
+as possible: a block appears only when it shows something a sentence can't.
+
+\section*{Diagrams}
+
+Colors in diagrams are roles, not decoration. A color means the same thing in
+every figure of the book.
+
+\begin{center}
+\begin{tikzpicture}
+  \matrix[column sep=6mm, row sep=4mm, nodes={anchor=center}] {
+    \node[hf/source, minimum width=26mm] {source}; &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {where the data comes from: a document, a sender, an outside system}; \\
+    \node[hf/reader, minimum width=26mm] {service}; &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {a program that does the work: a service, a function, a screen}; \\
+    \node[hf/store, minimum width=26mm] {store}; &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {where data is kept: a database, a bucket, the ERP}; \\
+    \node[hf/bus, minimum width=26mm] {middle}; &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {something that sits between: a queue, a bus, a protocol}; \\
+    \draw[hf/ask] (-13mm,0) -- (13mm,0); &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {asks: a request, a poll}; \\
+    \draw[hf/answer] (-13mm,0) -- (13mm,0); &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {answers a request}; \\
+    \draw[hf/push] (-13mm,0) -- (13mm,0); &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {pushes: an event, sent without being asked}; \\
+    \draw[hf/save] (-13mm,0) -- (13mm,0); &
+    \node[hf/note, anchor=west, text width=95mm, align=left] {keeps: written to storage}; \\
+    \draw[hf/pain, dashed] (-13mm,0) -- (13mm,0); &
+    \node[hf/note, anchor=west, text width=95mm, align=left, text=hfAlert] {a cost, a pain, or something forbidden}; \\
+  };
+\end{tikzpicture}
+\end{center}
+
+\section*{Exact facts, firm opinions}
+
+This is not a scientific book, and it does not pretend to be one.
+
+The history is checked. When the book says who did something and when, that is
+what happened.
+
+The opinions are another matter. When a framework survives only because the
+tutorials keep teaching it, the book says so. When a message broker adds nothing
+to a system with one reader, the book says it adds nothing, not that it is ``of
+limited value in some contexts''. Sometimes that will be unfair or imprecise,
+and we accept that.
+
+A reader who leaves with a position can argue with it, refine it, or throw it
+away. A reader who leaves with ``it depends'' has nothing to hold. Between being
+precise and leaving you with a position, this book prefers to give you a
+position.
