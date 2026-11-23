@@ -14,12 +14,12 @@ Cada capítulo do livro anda junto com o código que ele explica. O capítulo ve
 
 ### Capítulo (no `spec-hermes`)
 
-Um chat por capítulo, aberto nesta pasta. O Claude conduz:
+Um chat por capítulo, aberto nesta pasta. **Eu conduzo cada passo.** O Claude não escreve, não commita e não abre PR sem eu mandar. Ao abrir o chat, ele só lê a issue, diz em poucas linhas o que entendeu e espera. Depois, na ordem que eu decidir:
 
-1. Pergunta o que eu já sei e o que eu fiz de verdade na WM sobre o assunto. A minha experiência entra no capítulo.
-2. Escreve o rascunho em inglês, com a genealogia de cada conceito (quem, quando, que problema forçou a ideia) e o código mínimo, rodado.
-3. Fecha o capítulo com 2 a 4 caixas **In the interview**: uma pergunta de entrevista e uma resposta de 60 a 90 segundos, para dizer em voz alta.
-4. Gera o **kit de inglês** em `practice/english/NN-<slug>.md` (formato abaixo).
+1. Eu conto o que sei e o que fiz de verdade na WM sobre o assunto. A minha experiência entra no capítulo.
+2. O Claude escreve o trecho que eu pedir, em inglês, com a genealogia de cada conceito (quem, quando, que problema forçou a ideia) e o código mínimo, rodado.
+3. O capítulo fecha com 2 a 4 caixas **In the interview**: uma pergunta de entrevista e uma resposta de 60 a 90 segundos, para dizer em voz alta.
+4. Sai o **kit de inglês** em `practice/english/NN-<slug>.md` (formato abaixo).
 5. Eu reviso, leio em voz alta e corrijo o que não soa como eu.
 
 ### Código (nos repositórios `hermes-*`)
