@@ -23,6 +23,7 @@ Leia `WORKFLOW.md` antes de qualquer coisa. A entrevista é na quarta, 25/11/202
 - LaTeX em `book/`, um arquivo por capítulo em `book/chapters/`. MiKTeX e latexmk estão instalados. Depois de cada mudança, recompile o PDF e atualize o índice em `book/README.md`.
 - Nas issues de capítulo, o Claude escreve o trecho que o usuário pedir, a partir do que ele contar sobre o que sabe e o que fez de verdade (na WM ou em outros lugares). Nunca invente experiência dele.
 - História real: pessoas, datas, o problema que forçou cada ideia. Nada de histórias inventadas.
+- **Tom: um sênior explicando para um novato em software. Claro, sempre.** Explique cada termo na primeira vez que ele aparece; o porquê antes do como; uma ideia por parágrafo, frases curtas; um exemplo concreto do caso do trator; fale com o leitor como "you"; nunca presuma que ele já sabe.
 - Fatos exatos, opiniões categóricas. Inglês claro, do nível que o usuário consegue dizer numa entrevista. Tom leve, frases simples, sem frases de efeito com cara de texto de IA ("That isn't X. It's Y.", aforismos em sequência, fechamentos de impacto).
 - Todo capítulo termina com 2 a 4 caixas `\begin{interview}{pergunta}`: respostas de 60 a 90 segundos, em primeira pessoa, faladas.
 - Todo capítulo gera o kit `practice/english/NN-<slug>.md`, no formato do `WORKFLOW.md`. A sessão de treino de inglês lê esses arquivos.
