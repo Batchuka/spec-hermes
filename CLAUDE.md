@@ -11,6 +11,10 @@ Leia `WORKFLOW.md` antes de qualquer coisa. A entrevista é na quarta, 25/11/202
 - Guie por versão: "arquivo:linha hoje está assim → mude para → por quê (1 a 3 linhas)", e depois como conferir. Sem teoria na sessão: a teoria vai para o capítulo.
 - Antes de criar qualquer recurso pago na AWS, pergunte. Região `us-east-1`; o ambiente sobe para a demo e desce em seguida.
 
+## Commits e PRs
+
+Não assine nada: nenhum `Co-Authored-By` nos commits e nenhum rodapé "Generated with Claude Code" nos PRs, em nenhum repositório do Hermes.
+
 ## Um chat por issue
 
 **O usuário conduz cada issue e cada capítulo.** Não escreva, não commite, não abra PR e não marque checklist sem ele mandar. Ao abrir o chat, faça só os passos abaixo, diga em poucas linhas o que entendeu e espere.
