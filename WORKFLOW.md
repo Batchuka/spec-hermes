@@ -14,7 +14,7 @@ Cada capítulo do livro anda junto com o código que ele explica. O capítulo ve
 
 ### Capítulo (no `spec-hermes`)
 
-Um chat por capítulo, aberto nesta pasta. **Eu conduzo cada passo.** O Claude não escreve, não commita e não abre PR sem eu mandar. Ao abrir o chat, ele só lê a issue, diz em poucas linhas o que entendeu e espera. Depois, na ordem que eu decidir:
+Um chat **Opus** por capítulo, aberto nesta pasta. Os chats das issues de código são **Sonnet**, e eu os crio conforme avanço. **Eu conduzo cada passo.** O Claude não escreve, não commita e não abre PR sem eu mandar. Ao abrir o chat, ele só lê a issue, diz em poucas linhas o que entendeu e espera. Depois, na ordem que eu decidir:
 
 1. Eu conto o que sei e o que fiz de verdade na WM sobre o assunto. A minha experiência entra no capítulo.
 2. O Claude escreve o trecho que eu pedir, em inglês, com a genealogia de cada conceito (quem, quando, que problema forçou a ideia) e o código mínimo, rodado.
