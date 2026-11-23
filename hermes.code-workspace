@@ -1,7 +1,12 @@
 {
   "folders": [
     { "name": "spec-hermes (hub e livro)", "path": "." },
-    { "name": "hermes (código)", "path": "../hermes" }
+    { "name": "hermes-orchestrator", "path": "../hermes-orchestrator" },
+    { "name": "hermes-proposals", "path": "../hermes-proposals" },
+    { "name": "hermes-credit", "path": "../hermes-credit" },
+    { "name": "hermes-contracts", "path": "../hermes-contracts" },
+    { "name": "hermes-web", "path": "../hermes-web" },
+    { "name": "hermes-infra", "path": "../hermes-infra" }
   ],
   "settings": {}
 }

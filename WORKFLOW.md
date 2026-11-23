@@ -1,29 +1,56 @@
 # Como trabalho nesta linha
 
-## Prazo
+## Prazo e prioridade
 
-A entrevista técnica na John Deere é na quarta, 25/11/2026, às 13:30, toda em inglês. Até lá, o que mais vale é **explicar** a arquitetura em inglês. Código rodando é bônus, e AWS real é bônus do bônus.
+A entrevista técnica na John Deere é na quarta, 25/11/2026, às 13:30, toda em inglês. Vamos com tudo até lá: o que estiver pronto, ótimo. A ordem de ataque está no campo **Priority** do [Project](https://github.com/users/Batchuka/projects/13):
 
-## Papéis (modo híbrido)
+- **P0**: o que mais cai na entrevista. Arquitetura, filas, orquestração, Spring/REST e dinheiro em SQL.
+- **P1**: o resto do stack da vaga: Mongo, Keycloak, Angular, Docker e Terraform.
+- **P2**: bom de ter.
 
-- **Eu digito a lógica que vou explicar**: o código Java em `src/main` e `src/test` e os handlers Python em `lambdas/`.
-- **O Claude escreve e commita o andaime**: `pom.xml`, Maven wrapper, `Dockerfile`, `docker-compose.yml`, scripts e templates de `infra/`, o `application.yml` inicial e a classe `*Application` vazia de cada módulo. Também escreve e commita a documentação deste hub.
-- **O Claude guia.** Em cada versão ele responde assim: "arquivo:linha hoje está assim → mude para → por quê (1 a 3 linhas)", e diz como conferir. A teoria não fica na sessão: vai para o livro.
+Cada capítulo do livro anda junto com o código que ele explica. O capítulo vem primeiro, porque é ele que vira prática de inglês.
 
-## Versões progressivas
+## Dois tipos de issue
 
-Toda issue começa com uma **v0 ingênua**, escrita como um iniciante escreveria. Eu rodo, vejo quebrar, e cada versão seguinte corrige **uma** coisa que eu observei. As issues trazem as versões em checklist. A lista pode mudar no caminho.
+### Capítulo (no `spec-hermes`)
+
+Um chat por capítulo, aberto nesta pasta. O Claude conduz:
+
+1. Pergunta o que eu já sei e o que eu fiz de verdade na WM sobre o assunto. A minha experiência entra no capítulo.
+2. Escreve o rascunho em inglês, com a genealogia de cada conceito (quem, quando, que problema forçou a ideia) e o código mínimo, rodado.
+3. Fecha o capítulo com 2 a 4 caixas **In the interview**: uma pergunta de entrevista e uma resposta de 60 a 90 segundos, para dizer em voz alta.
+4. Gera o **kit de inglês** em `practice/english/NN-<slug>.md` (formato abaixo).
+5. Eu reviso, leio em voz alta e corrijo o que não soa como eu.
+
+### Código (nos repositórios `hermes-*`)
+
+Modo híbrido:
+
+- **Eu digito a lógica que vou explicar**: Java em `src/` e TypeScript do Angular em `src/app/`. Para o Terraform, eu digito com guia.
+- **O Claude escreve e commita o andaime**: `pom.xml`, `Dockerfile`, CI, `docker-compose`, scripts do LocalStack, realm do Keycloak, `application.yml`, a classe `*Application` vazia. E toda a documentação deste hub.
+- **O Claude guia por versão**: "arquivo:linha hoje está assim → mude para → por quê (1 a 3 linhas)", e como conferir.
+- Toda issue começa numa **v0 ingênua**. Eu rodo, vejo quebrar, e cada versão seguinte corrige **uma** coisa que eu observei.
+
+## O kit de inglês
+
+Um arquivo por capítulo, em `practice/english/`, que a sessão de treino de inglês usa para gerar prática. Sempre com estas seções:
+
+1. **Pitch**: o capítulo em 60 segundos, em primeira pessoa.
+2. **Interview Q&A**: as mesmas perguntas das caixas do capítulo, com as respostas.
+3. **Follow-ups**: 5 perguntas que um entrevistador faria em seguida, sem resposta.
+4. **Glossary**: 8 a 12 termos, com uma linha de significado e uma frase de exemplo.
+5. **Frames**: 3 construções reutilizáveis (`We chose ___ over ___ because ___.`).
 
 ## GitHub Flow
 
-1. Uma branch por issue: `<tipo>/<n>-<resumo>`, por exemplo `feat/2-rx-polling`.
-2. Um commit por versão.
+1. Uma branch por issue: `<tipo>/<n>-<resumo>`, por exemplo `feat/1-rx-polling` ou `docs/4-chapter-queues`.
+2. Um commit por versão (código) ou por seção (capítulo).
 3. Um comentário na issue por versão: o que quebrou, por quê e o que mudou. Em inglês, porque serve de treino.
-4. PR em inglês, merge sem squash, para o histórico de versões ficar no `main`. A descrição do PR conta a história da issue em parágrafos curtos, que eu consiga ler em voz alta.
+4. PR em inglês, merge sem squash. A descrição do PR conta a história em parágrafos curtos, que eu consiga ler em voz alta.
 
 ## Commits
 
-[Conventional Commits](https://www.conventionalcommits.org/), em inglês. Branches, PRs, issues e código também em inglês.
+[Conventional Commits](https://www.conventionalcommits.org/), em inglês, com `Refs #N`.
 
 ```
 feat(orchestrator): poll the RX queue with long polling
@@ -32,30 +59,25 @@ v1 of the RX consumer: short polling hit SQS in a tight loop and spent one
 request per empty answer. WaitTimeSeconds=20 lets SQS hold the request until a
 message arrives.
 
-Refs #2
+Refs #1
 ```
 
 ## HackerRank
 
-De vez em quando entra um exercício "típico" ligado a um trecho do case (hash map para a idempotência, sliding window para o polling, heap para a similaridade...). Eu resolvo no HackerRank e versiono a solução em `practice/hackerrank/`, com uma nota dizendo a que parte do case ele se liga.
+De vez em quando entra um exercício "típico" ligado a um trecho do código. Eu resolvo no HackerRank e versiono a solução em `practice/hackerrank/`, com uma nota dizendo a que parte do case ele se liga.
 
-## Simbiose com o treino de inglês
+## Pastas
 
-O ADR, os capítulos e as descrições de PR servem de material para a sessão de prática de inglês. Por isso são escritos em frases curtas e diretas, com o vocabulário que um entrevistador usaria.
-
-## Repositórios
-
-Ficam lado a lado em `C:\Projetos\hermes\`:
-
-| Pasta | O que é |
-| --- | --- |
-| `spec-hermes` | este hub: o livro, as decisões (`docs/adr/`), a prática e este fluxo |
-| `hermes` | o código: monorepo Maven, Lambdas Python e infra |
+Tudo lado a lado em `C:\Projetos\hermes\`: `spec-hermes`, `hermes-orchestrator`, `hermes-proposals`, `hermes-credit`, `hermes-contracts`, `hermes-web` e `hermes-infra`. O workspace `hermes.code-workspace` abre todas.
 
 ## Rodar localmente
 
-Tudo roda no LocalStack, que emula EventBridge, SQS, Lambda, SNS e S3 de graça. Os comandos estão no README do `hermes`.
+```powershell
+cd C:\Projetos\hermes\hermes-infra\local; docker compose up -d
+```
 
-## AWS de verdade
+Depois, `./mvnw spring-boot:run` em cada app. Os detalhes estão no README do `hermes-infra`.
 
-Nenhum recurso pago é criado sem o meu ok. Região `us-east-1`. Subir no ECS só para uma demo e derrubar logo depois.
+## AWS
+
+Tenho US$ 200 de crédito, válidos por 6 meses, e quero que rendam várias demos. O ambiente sobe com `terraform apply` para a demo e desce com `terraform destroy` logo depois, por cerca de US$ 0,20 por hora ligado. Nenhum recurso pago é criado sem o meu ok. Região `us-east-1`.
