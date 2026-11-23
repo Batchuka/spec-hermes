@@ -1,6 +1,8 @@
 # Linha Hermes
 
-Leia `WORKFLOW.md` antes de qualquer coisa. A entrevista é na quarta, 25/11/2026, às 13:30, em inglês. Trabalhe pela prioridade do Project (P0 → P1 → P2) e trate cada capítulo como material de prática de inglês.
+Leia `WORKFLOW.md` antes de qualquer coisa. A entrevista é na quarta, 25/11/2026, às 13:30, em inglês. Trate cada capítulo como material de prática de inglês.
+
+**A premissa:** o Hermes é uma história de casos de uso (UC-01, UC-02... no `spec-hermes`, campo Act do Project). O usuário não sabe o que quer até ver o que não quer, e nada é construído antes de ser pedido (YAGNI). Ao guiar uma issue, não antecipe a arquitetura final: resolva só o que o caso de uso pede, respeite o "Out of scope" dele e deixe a próxima dor aparecer sozinha. A integração só existe a partir do UC-06, e o orquestrador só a partir do UC-08.
 
 ## Código (modo híbrido)
 
@@ -13,7 +15,7 @@ Leia `WORKFLOW.md` antes de qualquer coisa. A entrevista é na quarta, 25/11/202
 
 **O usuário conduz cada issue e cada capítulo.** Não escreva, não commite, não abra PR e não marque checklist sem ele mandar. Ao abrir o chat, faça só os passos abaixo, diga em poucas linhas o que entendeu e espere.
 
-1. Leia a issue e os comentários (`gh issue view <n> -R Batchuka/<repo> --comments`) e as issues citadas em "Depends on".
+1. Leia a issue e os comentários (`gh issue view <n> -R Batchuka/<repo> --comments`), o caso de uso que ela implementa (a linha "Implements ...") e os casos de uso das pré-condições.
 2. Descubra onde o usuário está: os itens marcados no checklist, os comentários, a branch da issue e os commits dela.
 3. Se faltar alguma dependência, avise antes de começar.
 4. Diga qual é o próximo item não marcado e espere o usuário decidir por onde ir.

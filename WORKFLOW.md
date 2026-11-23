@@ -1,18 +1,37 @@
 # Como trabalho nesta linha
 
-## Prazo e prioridade
+## A premissa
 
-A entrevista técnica na John Deere é na quarta, 25/11/2026, às 13:30, toda em inglês. Vamos com tudo até lá: o que estiver pronto, ótimo. A ordem de ataque está no campo **Priority** do [Project](https://github.com/users/Batchuka/projects/13):
+O usuário não sabe o que quer. Ele só descobre quando vê o que não quer. Ninguém pede "integre todos os sistemas": cada setor pede a ferramenta que resolve a dor do seu dia, e a integração aparece quando alguém pergunta "por que isso não entra lá sozinho?". Watts Humphrey chamou isso de princípio da incerteza dos requisitos; Ron Jeffries resumiu o outro lado no YAGNI ("You aren't gonna need it"): não se constrói nada que não foi pedido. Quando a mudança chega, ela é feita da forma mais eficiente, com boas práticas.
 
-- **P0**: o que mais cai na entrevista. Arquitetura, filas, orquestração, Spring/REST e dinheiro em SQL.
-- **P1**: o resto do stack da vaga: Mongo, Keycloak, Angular, Docker e Terraform.
-- **P2**: bom de ter.
+Por isso o Hermes é uma **história de casos de uso**. A arquitetura final (mestre único, barramentos TX e RX) não é desenhada no começo: ela surge de demandas que vão ficando mais exigentes.
 
-Cada capítulo do livro anda junto com o código que ele explica. O capítulo vem primeiro, porque é ele que vira prática de inglês.
+## A ordem
 
-## Dois tipos de issue
+O [Project](https://github.com/users/Batchuka/projects/13) tem o campo **Act**, e a ordem é a dos casos de uso (UC-01, UC-02...):
+
+1. **Cada setor pede a sua ferramenta** (UC-01 a UC-05): serviços independentes e uma tela.
+2. **"Por que eu tenho que redigitar?"** (UC-06, UC-07): a primeira integração, ingênua; a coreografia nasce sozinha.
+3. **Um mestre** (UC-08 a UC-11): o orquestrador nasce observador e vira mestre.
+4. **O volume chega** (UC-12): 5.000 propostas por dia.
+5. **Gente de fora** (UC-13): login e papéis.
+6. **Mostrar e entregar** (UC-14 a UC-16): AWS, pipeline, extras.
+
+A entrevista técnica na John Deere é na quarta, 25/11/2026, às 13:30, em inglês. Vou na ordem e no meu ritmo; o que estiver pronto até lá, ótimo.
+
+## Três tipos de issue
+
+### Caso de uso (no `spec-hermes`)
+
+A demanda de um setor, no formato de Alistair Cockburn (*Writing Effective Use Cases*, 2000), simplificado: quem pediu e por quê agora, ator, objetivo, pré-condições, cenário principal, extensões e **fora do escopo** (o que ninguém pediu: o YAGNI escrito). As issues de implementação ficam penduradas nele como sub-issues, uma por repositório afetado.
+
+### Implementação (nos repositórios `hermes-*`)
+
+O título começa pelo caso de uso (`UC-06 · ...`). As versões v0 → vN estão em checklist (veja "Código", abaixo).
 
 ### Capítulo (no `spec-hermes`)
+
+Cada capítulo explica os casos de uso de um ato.
 
 Os capítulos andam **em ordem, um por vez, no meu ritmo**, sem chats em paralelo. Um chat **Opus** por capítulo, aberto nesta pasta quando eu chegar nele. Os chats das issues de código são **Sonnet**, e eu os crio conforme avanço. **Eu conduzo cada passo.** O Claude não escreve, não commita e não abre PR sem eu mandar. Ao abrir o chat, ele só lê a issue, diz em poucas linhas o que entendeu e espera. Depois, na ordem que eu decidir:
 
@@ -22,7 +41,7 @@ Os capítulos andam **em ordem, um por vez, no meu ritmo**, sem chats em paralel
 4. Sai o **kit de inglês** em `practice/english/NN-<slug>.md` (formato abaixo).
 5. Eu reviso, leio em voz alta e corrijo o que não soa como eu.
 
-### Código (nos repositórios `hermes-*`)
+## Código
 
 Modo híbrido:
 
