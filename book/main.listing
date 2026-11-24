@@ -1,5 +1,5 @@
-$ ./mvnw verify
-...
-[INFO] Results:
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
-[INFO] BUILD SUCCESS
+<nav>
+  <a routerLink="/sales" routerLinkActive="active">Sales</a>
+  <a routerLink="/credit" routerLinkActive="active">Credit</a>
+</nav>
+<router-outlet />

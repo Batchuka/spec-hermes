@@ -1,12 +1,1261 @@
-\chapter{Documents}
-\label{ch:documents}
+\chapter{Two Services and a Screen}
+\label{ch:two-services}
 
-% Act 1. Use cases: UC-01.
-% Already in chapter 1 (refer back, don't repeat): relational vs document in one page; MongoDB's history (2007); embedding the documents; Decimal128; the Spring Data repository; "Is MongoDB better than MySQL?".
-% Planned: the relational model (Codd, 1970): tables, normalization, joins; schema on write vs schema on read; embedding vs referencing, and when embedding stops working (16 MB, unbounded lists); querying and indexing the unknown fields of a document; Spring Data MongoDB beyond the interface (derived queries, MongoTemplate); MongoDB Atlas, and why RDS has no MongoDB (DocumentDB).
+% Act 1. Use cases: UC-01 (spec-hermes#16) and UC-02 (spec-hermes#17), chapter issue spec-hermes#10.
+% Code: hermes-credit#1 and #3, hermes-infra#2 (MySQL), hermes-web#1, #2 and #4 (the screens); ADR 0002.
+% The chapter is marked by three things: the microservice, MySQL and the problem of indexes, and Angular.
+% Already in chapter 1 (refer back, don't repeat): relational vs document in one page; MongoDB's history (2007);
+% embedding the documents; Decimal128; the Spring Data repository and derived queries in one box;
+% "Is MongoDB better than MySQL?".
+% Moved here from chapter 3: Flyway (hermes-credit#5), V1, baseline-on-migrate, ddl-auto: validate.
+% Left for chapter 3: dependency injection in depth, the service layer (ScoreCalculator), PUT/PATCH,
+% JPA itself, the tests of credit.
+% Not here, nobody asked yet: one screen for many services, signals and change detection in depth,
+% a static front end on a CDN; embed or reference (16 MB), MongoTemplate, Atlas and DocumentDB.
+% Code blocks are copied from hermes-credit at 3a13486 and hermes-web at 7884754.
+% Terminal output taken on 2026-11-24: flyway_schema_history from the local hermes-mysql;
+% the other examples ran in throwaway containers (mysql:8.4, 100,000 rows; mongo:7, 20,001 documents),
+% never in the services. Long output lines are wrapped to fit the page.
+% TODO(user): the user's own experience (WM or elsewhere) is not in the chapter yet. Each section has a
+% TODO(user) where it would fit. Nothing here claims experience the user did not tell.
 
-\emph{To be written.}
+In Chapter~\ref{ch:map} you built the first service and chose MongoDB for it.
+Now a second team asks for its own tool. The system gets a second service, a
+second kind of database, and its first screens. This chapter is about those
+three things. At the end you will know why each service keeps its own
+database, how a relational database stores and finds data, and how a screen
+in the browser talks to a service.
 
+% ===========================================================================
+% Mark 1: the microservice
+% ===========================================================================
+\section{A second team, a second service}
+
+While Sales was getting its tool, the Credit team was looking. Credit is the
+team that decides if a farmer gets the money. Here is what they asked for.
+
+\begin{usecase}{UC-02}{Credit analyzes a proposal}{https://github.com/Batchuka/spec-hermes/issues/17}
+\textbf{Why now:} analysts score proposals in personal spreadsheets. There is
+no history of decisions, and two analysts can decide differently on the same
+case.
+
+\textbf{Primary actor:} the credit analyst.
+
+\textbf{Goal:} score a proposal and record an approval or a rejection with its
+reason.
+
+\textbf{Preconditions:} the analyst has the proposal in hand, printed or on
+the screen of \uc{UC-01}.
+
+\textbf{Main success scenario:}
+\begin{enumerate}
+  \item The analyst starts a new analysis.
+  \item They type the data of the proposal: farmer, income, amount, term.
+  \item The system computes a score and a limit.
+  \item The analyst approves or rejects, with a reason.
+  \item The system stores the decision.
+\end{enumerate}
+
+\textbf{Extensions:}
+\begin{itemize}
+  \item[3a.] Income is missing: the system cannot score and says so.
+\end{itemize}
+
+\textbf{Out of scope:} receiving the proposal automatically, because the
+analyst retypes it and nobody asked otherwise; and issuing the contract.
+\end{usecase}
+
+Look at the first line of the out of scope. The proposal already exists in
+the system of Sales, and the analyst types it again by hand. It looks silly.
+But nobody asked for the two systems to talk, so they don't. When retyping
+starts to hurt, someone will ask, and the system will change then. That is
+YAGNI, from Chapter~\ref{ch:map}, doing its job.
+
+\subsection*{Where does the new code go?}
+
+You already have a working service, \texttt{hermes-proposals}. The easy path
+is to add a package called \texttt{credit} inside it, with a new controller
+and a new table. One application, one deploy, one thing to run.
+
+An application where everything lives together like that is called a
+\emph{monolith}, from the Greek for ``one stone''. A monolith is not a bad
+word. Many good systems are monoliths, and it is the simplest way to start.
+
+Hermes took the other path: Credit got a new application,
+\texttt{hermes-credit}, with its own repository on GitHub. The reason is the
+\emph{domain}. A domain is one area of the business, with its own people, its
+own words and its own rules. Sales talks about proposals, dealers and
+documents. Credit talks about income, scores, limits and decisions. Sales asks
+for changes in the proposal; Credit asks for changes in the score. They are
+two teams, and they change their minds at different times.
+
+\begin{history}{2014 \textperiodcentered{} ThoughtWorks}
+In March 2014, James Lewis and Martin Fowler, both at the consulting company
+ThoughtWorks, published an article called ``Microservices'' on Fowler's
+website. The word was not theirs. A group of software architects had been
+using it since a workshop near Venice in 2011, to name a style they kept
+seeing in their clients: one system built as many small applications, each
+one running on its own and talking to the others over the network.
+
+The article gave the style a clear description. Two of its points matter in
+this chapter. The services are organized around business capabilities, which
+is another name for domains. And each service manages its own data.
+\end{history}
+
+\begin{concept}{Microservice}
+A \emph{microservice} is a small application that serves one domain. It runs
+in its own process, has its own database, and talks to the rest of the
+system only through its API.
+
+\textbf{What it fixes:} each team changes and deploys its part without waiting
+for the others. A bug in Credit does not stop Sales from registering
+proposals.
+
+\textbf{What it costs:} more things to run, test and watch. Calls between
+services go over the network, which is slower and can fail. And the data of
+the system is split across several databases.
+\end{concept}
+
+\begin{question}{Isn't it too early for two services?}
+Many experienced people would say yes. In 2015 Fowler himself wrote an
+article called ``MonolithFirst'', which says you should usually start with a
+monolith and split it later.
+
+This book disagrees. Hermes moves fast: Credit asks for its tool right after
+Sales. In real projects the second team usually arrives much later, when the
+first system is finished and its scope is closed. By then, adding a new
+domain inside it means opening a system that was done, and that its team
+does not want to touch.
+
+So this book starts separated, one service per domain, and joins things
+later if they turn out to be too small to live alone. Joining two small
+services is easier than splitting a big one. Divide and conquer.
+\end{question}
+
+% TODO(user): your experience with services split by domain (or a monolith that hurt), if any.
+
+\subsection*{Two services on one machine}
+
+The first problem of the second service was not about domains. It was about
+ports. A \emph{port} is a number that tells your computer which program
+should receive a network request. Spring Boot uses port 8080 unless you say
+otherwise. So does \texttt{hermes-proposals}. The two services could not run
+at the same time on the same laptop: the second one to start found the port
+taken and stopped.
+
+This showed up while the Credit screen was being built, when both services
+had to run together for the first time. The fix is one line in the
+configuration of Credit:
+
+\begin{code}[language={}]
+server:
+  port: 8081
+\end{code}
+\incode{hermes-credit}{900cdb4}{Credit runs on port 8081}
+
+It is a small thing, but it teaches the main lesson of this section: two
+services are two separate programs. They don't share memory, ports or
+anything else, unless you make them.
+
+\subsection*{Each service owns its data}
+
+Credit needs to store analyses. The quick idea would be to put them in the
+MongoDB that proposals already uses. Hermes doesn't, and the reason is a rule.
+
+\begin{concept}{Database per service}
+Each service has its own database, and no other service reads or writes it.
+If Credit needs something from Sales, it asks the API of Sales. It never
+opens the database of Sales.
+
+\textbf{What it fixes:} the shape of the data stays private. Sales can rename
+a field, split a collection or change its database, and nothing outside
+breaks, as long as its API stays the same. If another service read the
+database directly, the database would become a hidden API that nobody
+promised to keep.
+
+\textbf{What it costs:} you cannot join the data of two domains in one query.
+And some data gets copied: the name of the farmer now lives in both
+databases.
+\end{concept}
+
+Once each service owns its data, a second question appears: does it have to
+be the same \emph{kind} of database? The first decision record of Hermes said
+yes, one database server for everyone. Then the data of Credit arrived, and
+it had a different shape. A proposal has documents with fields nobody knows
+in advance. An analysis has eight fields, always the same. So the decision
+changed, and the change was written down in a new record, ADR 0002: each
+service picks the database that fits its data. Proposals stays on MongoDB.
+Credit uses MySQL.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[hf/source, minimum width=26mm] (sales)  at (0,0)    {Sales screen};
+  \node[hf/source, minimum width=26mm] (credit) at (0,-2.2) {Credit screen};
+  \node[hf/reader, minimum width=30mm] (p) at (4.6,0)    {hermes-proposals\\port 8080};
+  \node[hf/reader, minimum width=30mm] (c) at (4.6,-2.2) {hermes-credit\\port 8081};
+  \node[hf/store] (mongo) at (9,0)    {MongoDB};
+  \node[hf/store] (mysql) at (9,-2.2) {MySQL};
+  \draw[hf/ask]  (sales)  -- node[hf/note, above] {HTTP} (p);
+  \draw[hf/ask]  (credit) -- node[hf/note, above] {HTTP} (c);
+  \draw[hf/save] (p) -- (mongo);
+  \draw[hf/save] (c) -- (mysql);
+  \draw[hf/pain, dashed] (p.south) -- node[hf/note, right, text=hfAlert] {nothing between them} (c.north);
+\end{tikzpicture}
+\end{center}
+
+Notice the red dashed line. The two services know nothing about each other.
+Each screen talks to one service, and each service talks to one database.
+
+\begin{reflection}{The same farmer is now typed twice, in two databases. Isn't that wrong?}
+It is a copy, and copies can disagree. A salesperson can type ``Joao Silva''
+and an analyst ``João da Silva''. But the copy is the price of the rule above,
+and today it is small: nobody has asked the two systems to agree. When
+someone does, the services will need to talk to each other, and that will be
+a new request, with its own chapter.
+\end{reflection}
+
+% ===========================================================================
+% Mark 2: MySQL and the problem of indexes
+% ===========================================================================
+\section{The relational model}
+
+Chapter~\ref{ch:map} described a relational database in one paragraph: data
+in tables, every row with the same columns. Credit is the first service in
+Hermes that uses one, so now you will see it properly.
+
+\begin{history}{1970 \textperiodcentered{} San Jose, California}
+Before 1970, a program that read a database had to know how the data was
+stored on disk: which record pointed to which, and in what order to follow
+them. If the storage changed, the programs broke.
+
+Edgar F. Codd, a British mathematician working at the IBM research
+laboratory in San Jose, proposed something else. In June 1970 he published
+the paper ``A Relational Model of Data for Large Shared Data Banks''. His
+idea: show the data to programs only as tables of values, and let the
+programs ask for what they want, not for how to find it. The storage could
+then change without breaking anyone. IBM was slow to sell it, and the first
+commercial relational database came from a small company that later became
+Oracle, in 1979. Codd received the Turing Award, the highest prize in
+computing, in 1981.
+\end{history}
+
+\subsection*{The table of Credit}
+
+In Credit, an analysis is a Java class marked as an \emph{entity}, a class
+whose objects are saved as rows of a table. Here it is, without the getters
+and setters:
+
+\begin{code}
+@Entity
+@Table(name = "analyses")
+public class Analysis {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	private String farmer;
+	private BigDecimal income;
+	private BigDecimal amount;
+	private Integer termMonths;
+	private Integer score;
+	private BigDecimal creditLimit;
+
+	@Enumerated(EnumType.STRING)
+	private Decision decision;
+	private String reason;
+}
+\end{code}
+\incode{hermes-credit}{53e972e}{the analysis and its table}
+\incode{hermes-credit}{93462bb}{the decision and its reason}
+
+The class says what an analysis is in Java. The table says what it is in
+MySQL, and it is written in a file of the service, in SQL, the language of
+relational databases:
+
+\begin{code}[language=SQL]
+CREATE TABLE `analyses` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `amount` decimal(38,2) DEFAULT NULL,
+  `credit_limit` decimal(38,2) DEFAULT NULL,
+  `farmer` varchar(255) DEFAULT NULL,
+  `income` decimal(38,2) DEFAULT NULL,
+  `score` int DEFAULT NULL,
+  `term_months` int DEFAULT NULL,
+  `decision` enum('APPROVED','REJECTED') DEFAULT NULL,
+  `reason` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+\end{code}
+\incode{hermes-credit}{aca9ac9}{the schema as version 1, V1\_\_create\_analyses.sql}
+
+The name of the file, \texttt{V1\_\_create\_analyses.sql}, starts with a
+version number. That is on purpose, and Section~\ref{sec:two-shape} tells
+the story: the first version of Credit had no such file at all.
+
+Every field of the class became a \emph{column}, with a \emph{type}: whole
+numbers are \texttt{int} or \texttt{bigint}, money is \texttt{decimal} with
+two digits after the point, text is \texttt{varchar} up to 255 characters,
+and the decision can only be one of two words. Every analysis saved becomes
+a \emph{row}. The camel case of Java (\texttt{creditLimit}) became the snake
+case of SQL (\texttt{credit\_limit}).
+
+The last line names the \emph{primary key}: the column that identifies each
+row, so no two rows can have the same \texttt{id}. \texttt{AUTO\_INCREMENT}
+means MySQL picks the next number for you. That is why the Java class has
+\texttt{@GeneratedValue}.
+
+Here is the same table with two analyses in it. The first one was rejected;
+the second one is still waiting for a decision, so its last two cells are
+empty:
+
+\begin{center}
+\begin{tikzpicture}
+  \node[hf/table, font=\sffamily\scriptsize,
+        label={[hf/tablename]north west:analyses}] {%
+    \begin{tabular}{lllllllll}
+      \hfpk{id} & farmer & income & amount & term\_months & score & credit\_limit & decision & reason \\ \hline
+      1 & Joao Silva & 50000.00 & 120000.00 & 24 & 41 & 360000.00 & REJECTED & Income too low \\
+      2 & Joao & 5000.00 & 10000.00 & 12 & 50 & 18000.00 & & \\
+    \end{tabular}};
+\end{tikzpicture}
+\end{center}
+
+Each column is a fact about the analysis. Each row is one analysis. That
+picture is all a relational table is.
+
+One part of the file is still unexplained: \texttt{ENGINE=InnoDB}. MySQL
+works in two layers. The top layer understands SQL: it reads your query and
+decides how to answer it. The bottom layer, called the \emph{storage engine},
+writes the rows to the disk and reads them back. You can pick the engine of
+each table, and InnoDB has been the default since MySQL 5.5, in 2010. That
+is why you see it at the end of almost every \texttt{CREATE TABLE}. InnoDB is
+also the engine that checks foreign keys and keeps a group of changes
+all-or-nothing, which is called a \emph{transaction}. The engine that was the
+default before it, MyISAM, did neither. Section~\ref{sec:two-further} shows
+how InnoDB lays a table out on the disk.
+
+\subsection*{Each fact in one place}
+
+Look at the \texttt{farmer} column. It holds the farmer's name as plain text,
+in every analysis. If Joao Silva asks for credit three times, his name is
+written three times. If his name was typed wrong, it is wrong in three
+places, and fixing one of them does not fix the others.
+
+Codd saw this problem early. In 1970 and 1971 he described a set of rules
+called \emph{normal forms}, and the work of changing your tables until they
+follow them is called \emph{normalization}. You don't need the rules one by
+one to follow this chapter; they are drawn in Section~\ref{sec:two-further},
+at the end. The idea behind all of them fits in one sentence: each fact lives
+in exactly one place.
+
+The farmer's name is a fact about the farmer, not about the analysis. So the
+usual answer is to give the farmers a table of their own. The analysis keeps
+only a number that points to the farmer's row.
+
+That number is a \emph{foreign key}: a column that holds the primary key of a
+row in another table. The database checks it for you. Here is a normalized
+version, run in a throwaway database (it is not the table of Hermes):
+
+\begin{code}[language=SQL]
+CREATE TABLE farmers (
+  id   bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name varchar(255) NOT NULL
+);
+CREATE TABLE analyses (
+  id        bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  farmer_id bigint NOT NULL,
+  income    decimal(38,2),
+  amount    decimal(38,2),
+  FOREIGN KEY (farmer_id) REFERENCES farmers (id)
+);
+\end{code}
+
+Try to save an analysis for a farmer that does not exist, and MySQL refuses:
+
+\begin{terminal}
+mysql> INSERT INTO analyses (farmer_id, income, amount) VALUES (99, 1, 1);
+ERROR 1452 (23000): Cannot add or update a child row: a foreign key
+constraint fails (`norm`.`analyses`, CONSTRAINT `analyses_ibfk_1`
+FOREIGN KEY (`farmer_id`) REFERENCES `farmers` (`id`))
+\end{terminal}
+
+To read the analyses with the names, you put the two tables back together
+with a \emph{join}. A join matches the rows of two tables by a column they
+share:
+
+\begin{terminal}
+mysql> SELECT a.id, f.name, a.amount
+    -> FROM analyses a
+    -> JOIN farmers f ON f.id = a.farmer_id;
+id  name        amount
+1   Joao Silva  120000.00
+2   Joao Silva  450000.00
+\end{terminal}
+
+The name is stored once and shown twice. That is the relational model in
+one picture: split the data so each fact lives in one place, then join it
+back when you read.
+
+\begin{question}{So why doesn't Credit have a farmers table?}
+Because nobody asked to manage farmers. \uc{UC-02} says the analyst types the
+farmer's name, and that's all. A farmers table would need screens to create,
+find and fix farmers, and nobody asked for that. The day someone needs the
+history of one farmer, the table will change. Normalization is a tool, not a
+duty.
+\end{question}
+
+\subsection*{The proposal in tables}
+
+Now you can see the pain that Chapter~\ref{ch:map} only named. Try to store
+a proposal of \uc{UC-01} in tables. The proposal is easy: one row with the
+farmer, the equipment, the amount and the term. Each document is a row in a
+second table, with a foreign key to the proposal.
+
+The fields of the documents are the problem. An invoice has a number and a
+value; a proof of income has a year and an income; next month a dealer sends
+a type nobody has seen. You can't create columns for fields you don't know.
+So you end up with a third table of pairs, one row per field: the document,
+the name of the field, and its value as text. To find ``every invoice above
+400,000'', you search that table for rows named \texttt{value}, turn the text
+into a number, and join three tables. It works, but every query fights the
+model. That is why Proposals lives in MongoDB, and Credit, with its eight
+fixed fields, lives in MySQL.
+
+% TODO(user): your experience with relational databases (which one, what for), if any.
+
+\section{Who checks the shape}
+\label{sec:two-shape}
+
+The two databases of Hermes disagree on one important question: who makes
+sure the data has the right shape?
+
+MySQL checks when you write. The table says that \texttt{decision} is
+\texttt{APPROVED} or \texttt{REJECTED}. Try something else:
+
+\begin{terminal}
+mysql> INSERT INTO analyses (farmer, decision) VALUES ('Joao Silva', 'MAYBE');
+ERROR 1265 (01000): Data truncated for column 'decision' at row 1
+\end{terminal}
+
+The row is not saved. The message is not very clear (``data truncated''
+means the value did not fit the column), but the result is: bad data never
+enters the table. This is called \emph{schema on write}. The \emph{schema} is
+the description of the shape of the data, and the database applies it every
+time you write.
+
+MongoDB, by default, checks nothing. Send it a document with
+\texttt{decision: "MAYBE"} and it saves it. The shape is only applied when
+some code reads the document and tries to make sense of it. This is called
+\emph{schema on read}. You saw it in Chapter~\ref{ch:map}: MongoDB never
+received a description of a proposal. The Java record and its Bean
+Validation rules are the only schema Proposals has, and they work at the
+door of the service, before anything is saved.
+
+\begin{concept}{Schema on write and schema on read}
+\textbf{Schema on write:} the database knows the shape and refuses data that
+does not fit. \emph{What it fixes:} bad data cannot get in, whatever program
+writes it. \emph{What it costs:} every change of shape is a change in the
+database, made before the code that uses it.
+
+\textbf{Schema on read:} the database stores what it receives, and the code
+that reads decides what it means. \emph{What it fixes:} data whose shape
+changes, or is not known in advance, like the documents of \uc{UC-01 3a}.
+\emph{What it costs:} the checks live in your code. If one program forgets
+them, bad data gets in, and you find out later, when something reads it.
+\end{concept}
+
+\begin{question}{Can't MongoDB check the shape too?}
+It can. Since version 3.6, in 2017, you can attach a JSON Schema to a
+collection, and MongoDB refuses documents that don't match it. Proposals
+doesn't use it: the variable fields are the whole point of the service, and
+the fixed fields are already checked by the Java code. But it is good to know
+the option exists.
+\end{question}
+
+\subsection*{The schema, written down}
+
+If MySQL applies the schema, someone has to give the schema to MySQL. A few
+pages ago you saw the schema of Credit as a file. In the first version of
+the service, that file did not exist.
+Nobody wrote a \texttt{CREATE TABLE}. A library called Hibernate, the one
+that turns Java objects into rows, read the class \texttt{Analysis} when the
+service started and created the table by itself, because the configuration
+said \texttt{ddl-auto: update}.
+
+That is fine for the first day, and it goes wrong as soon as the table
+changes:
+
+\begin{itemize}
+  \item The schema lives nowhere you can read. To see it, you have to ask the
+        database.
+  \item Changes leave no history. When a column changes, nothing says when,
+        why or in what order.
+  \item Hibernate guesses. \texttt{update} adds tables and columns that are
+        missing, but never removes or renames one, and it changes the
+        database every time the service starts.
+\end{itemize}
+
+\begin{concept}{Schema migration}
+A \emph{schema migration} is one change to the schema, written as a file
+with a version number: create a table, add a column, add an index. The files
+live with the code of the service and run in order. The schema of the
+database is the sum of all the files that ran.
+
+\textbf{What it fixes:} the schema can be read, reviewed and versioned like
+code. Every database, on your laptop, in a test or in production, reaches the
+same shape by running the same files.
+
+\textbf{What it costs:} a file that already ran must never change. Every
+change, even fixing a typo, is a new file.
+\end{concept}
+
+\begin{history}{2010 \textperiodcentered{} Flyway}
+In 2010, Axel Fontaine, a developer who was tired of changing databases by
+hand, released Flyway, a small Java tool that does exactly this. It became
+one of the two most used migration tools in the Java world, next to
+Liquibase. In 2019 the company Redgate bought it, and its core is still open
+source.
+\end{history}
+
+In Credit, the migrations live in the folder
+\path{src/main/resources/db/migration}. The name of each file follows a rule:
+\texttt{V}, the version, two underscores, and a description. The first one
+is \texttt{V1\_\_create\_analyses.sql}. When the service starts, Flyway looks
+for files that have not run yet on that database, runs them in order, and
+writes each one in a table of its own, \path{flyway_schema_history}. It also
+keeps a checksum of each file,
+a number computed from its content, and refuses to start if a file that
+already ran was changed.
+
+The configuration changed in two lines:
+
+\begin{code}[language={}]
+spring:
+  flyway:
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+\end{code}
+\incode{hermes-credit}{aca9ac9}{Flyway owns the schema; Hibernate only checks it}
+
+\texttt{ddl-auto: validate} takes the pen away from Hibernate. It no longer
+creates or changes anything. When the service starts, it compares the class
+with the table and refuses to start if they disagree. Now the schema has one
+writer, Flyway, and one checker, Hibernate.
+
+\texttt{baseline-on-migrate} solves a problem that only exists because the
+service was already running. The MySQL on the laptop already had the table
+\texttt{analyses}, created by Hibernate, and no history table. Flyway refuses
+to work on a database like that, because it can't know what is there. The
+\emph{baseline} tells it: if you find a database with tables and no history,
+write down that version 1 is already applied, and start from there. That is
+exactly what the history table of the local database says:
+
+\begin{terminal}
+mysql> SELECT version, description, type FROM flyway_schema_history;
+version  description            type
+1        << Flyway Baseline >>  BASELINE
+\end{terminal}
+
+On the laptop, \texttt{V1} never ran; it was marked as done. In the tests,
+the MySQL container starts empty, so there \texttt{V1} runs for real, every
+time. If the file and the class ever disagree, the tests fail.
+
+From now on, every change to the table of Credit is a new file in that
+folder, and the chapter that brings the change shows the file.
+
+\section{Indexes}
+\label{sec:two-indexes}
+
+% TODO(user): "the problem of indexes" — your own story goes here first, before the example.
+
+The Credit team asked for a history of decisions. Today the service answers
+two questions: ``give me all the analyses'' and ``give me analysis number
+42''. Sooner or later an analyst will ask a third one: ``show me every
+analysis of this farmer''. Nobody has asked yet, so the service can't do it.
+But you can already see what would happen.
+
+To test it, a throwaway MySQL got the same \texttt{analyses} table and
+100,000 rows, each one with a different farmer. Then one question, with
+\texttt{EXPLAIN ANALYZE} in front of it. \texttt{EXPLAIN ANALYZE} runs the
+query and tells you how MySQL found the answer and how long each step took:
+
+\begin{terminal}
+mysql> EXPLAIN ANALYZE SELECT * FROM analyses WHERE farmer = 'Farmer 4242';
+-> Filter: (analyses.farmer = 'Farmer 4242')  (cost=10116 rows=9947)
+   (actual time=1.7..40.3 rows=1 loops=1)
+    -> Table scan on analyses  (cost=10116 rows=99473)
+       (actual time=0.0793..30.6 rows=100000 loops=1)
+\end{terminal}
+
+Read it from the bottom. \emph{Table scan}: MySQL read all 100,000 rows, one
+by one, and kept the one that matched. It took 40 milliseconds to find one
+row. That sounds fast, but it grows with the table: ten times more analyses,
+about ten times slower. And every analyst who opens the history pays it
+again.
+
+Now add an index on the column you search by, and ask again:
+
+\begin{terminal}
+mysql> CREATE INDEX idx_analyses_farmer ON analyses (farmer);
+mysql> EXPLAIN ANALYZE SELECT * FROM analyses WHERE farmer = 'Farmer 4242';
+-> Index lookup on analyses using idx_analyses_farmer
+   (farmer='Farmer 4242')  (cost=0.35 rows=1)
+   (actual time=0.021..0.0221 rows=1 loops=1)
+\end{terminal}
+
+\emph{Index lookup}: MySQL went straight to the row. It took 0.02
+milliseconds, about two thousand times faster, and it will stay fast when
+the table grows.
+
+\begin{concept}{Index}
+An \emph{index} is an extra structure that the database keeps next to a
+table, sorted by one or more columns, so it can find rows by those columns
+without reading the whole table. It works like the index at the back of a
+book: you look up the word and go straight to the page.
+
+\textbf{What it fixes:} slow searches. Without an index, finding rows by a
+column means reading every row.
+
+\textbf{What it costs:} space on disk, and time on every write. Each
+\texttt{INSERT}, \texttt{UPDATE} and \texttt{DELETE} must also update every
+index of the table.
+\end{concept}
+
+\begin{history}{1970 \textperiodcentered{} Seattle}
+The same year Codd published the relational model, Rudolf Bayer and Edward
+McCreight, two researchers at Boeing, described a structure for exactly this
+job: the \emph{B-tree}. It keeps keys sorted in a short, wide tree, so the
+database reaches any key by reading only a few pages of the disk, even with
+millions of rows. More than fifty years later, it is still the default.
+InnoDB, the storage engine of the table of Credit, uses a variant of it
+called the \emph{B+tree}.
+
+It works like a paper dictionary. You never read a dictionary page by page.
+You open it, look at the guide words at the top of the page, and jump forward
+or back. Each look throws away a big part of the book. A B-tree does the same
+with the pages of the disk.
+
+Here is a tiny one, for an index on \texttt{farmer}. Each box is one page.
+The top page, the \emph{root}, holds no farmers: Joao and Pedro are only
+guide words. Names before Joao go left, names from Joao up to Pedro go to the
+middle, and names from Pedro on go right. The pages at the bottom, the
+\emph{leaves}, hold the real names, in order, each with the id of its row.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm,
+    page/.style={hf/table, font=\sffamily\footnotesize},
+    edge/.style={hf/flow, draw=black!35},
+    path/.style={hf/flow, draw=hfReader, line width=1.4pt}]
+  \newcommand\hit[1]{\textbf{\color{hfReader}#1}}
+  \node[page] (root) at (0,0) {\begin{tabular}{c|c} Joao & Pedro \end{tabular}};
+  \node[page, anchor=north] (l1) at (-4.2,-1.3) {\begin{tabular}{ll} Ana & $\to$ 4 \\ Carlos & $\to$ 6 \end{tabular}};
+  \node[page, anchor=north] (l2) at (0,-1.3)    {\begin{tabular}{ll} Joao & $\to$ 1 \\ \hit{Lucas} & \hit{$\to$ 2} \\ Maria & $\to$ 5 \end{tabular}};
+  \node[page, anchor=north] (l3) at (4.2,-1.3)  {\begin{tabular}{ll} Pedro & $\to$ 7 \\ Rita & $\to$ 3 \end{tabular}};
+  \draw[edge] (root.south west) -- node[hf/note, sloped, above] {before Joao} (l1.north);
+  \draw[path] (root.south) -- node[hf/note, right, text=hfReader, pos=0.75] {Joao up to Pedro} (l2.north);
+  \draw[edge] (root.south east) -- node[hf/note, sloped, above] {Pedro on} (l3.north);
+  \node[hf/note, anchor=west] at (root.east) {\;the root: only guide words};
+  \node[hf/note, below=1mm of l3] {the leaves: names and ids};
+  \node[hf/table, font=\sffamily\footnotesize] (row) at (0,-3.9)
+    {\begin{tabular}{lll} id & farmer & amount \\ \hline 2 & Lucas & 90000.00 \end{tabular}};
+  \draw[path] (l2.south) -- (row.north);
+  \node[hf/note, anchor=west] at (row.east) {\;the row in the table};
+  \node[hf/step, left=2mm of root] {1};
+  \node[hf/step, left=2mm of l2] {2};
+  \node[hf/step, left=2mm of row] {3};
+\end{tikzpicture}
+\end{center}
+
+To find Lucas, the database reads three pages:
+
+\begin{enumerate}
+  \item \textbf{The root.} Lucas comes after Joao and before Pedro, so it
+        follows the middle arrow. The other two pages are never read.
+  \item \textbf{The leaf.} Lucas is there, with the id of his row: 2.
+  \item \textbf{The row.} The database reads row 2 of the table.
+\end{enumerate}
+
+In the drawing each page holds two or three names, so it doesn't look like
+much. A real page holds hundreds. With 300 keys in each page, the root points
+to 300 pages, those point to 90,000 names, and one more level reaches 27
+million. So to find one farmer among the 100,000 analyses of the test above,
+the database reads three or four pages, not the 100,000 rows of the table
+scan.
+\end{history}
+
+You already have one index without asking: the primary key. That is why
+``give me analysis number 42'' is fast. MySQL looks up the id in the index of
+the primary key, the same way it looked up the farmer above.
+
+\begin{question}{Why not put an index on every column?}
+Because each index is paid on every write. A table with ten indexes does ten
+extra pieces of work every time you save a row. Index the columns you really
+search by, and look at \texttt{EXPLAIN} to check that the database uses them.
+In Credit nobody searches by farmer yet, so there is no index on
+\texttt{farmer}. When the search arrives, the index arrives with it, as a
+new migration: \texttt{V2\_\_index\_analyses\_farmer.sql}.
+\end{question}
+
+\subsection*{An index for fields nobody knew}
+
+MongoDB has the same problem, with a twist. The documents of a proposal have
+a \texttt{fields} map, and \uc{UC-01 3a} says its names are not known in
+advance. A normal index needs the name of the field. How do you index a field
+that doesn't exist yet?
+
+MongoDB answers with a \emph{wildcard index}: an index on every field under a
+path, whatever its name. In a throwaway MongoDB with 20,001 proposals, a
+search for an invoice number examined every document. After the wildcard
+index, it examined one. And a field that did not exist when the index was
+created, \texttt{anything}, was found through the index too:
+
+\begin{terminal}
+> db.proposals.find({ "documents.fields.number": "4242" })
+    .explain("executionStats").executionStats.totalDocsExamined
+20001
+> db.proposals.createIndex({ "documents.fields.$**": 1 })
+documents.fields.$**_1
+> db.proposals.find({ "documents.fields.number": "4242" })
+    .explain("executionStats").executionStats.totalDocsExamined
+1
+> db.proposals.find({ "documents.fields.anything": "works" })
+    .explain("executionStats").executionStats.totalDocsExamined
+1
+\end{terminal}
+
+The \texttt{\$**} means ``every field below this point''. The cost is the
+same as before, only bigger: every field of every document goes into the
+index. Proposals doesn't have this index either. Nobody searches inside the
+documents yet.
+
+% ===========================================================================
+% Mark 3: Angular
+% ===========================================================================
+\section{A screen for each team}
+
+Until now, the only way to use Hermes was to send JSON to an address, with
+a tool like \texttt{curl}. That is fine for a developer and useless for a
+salesperson or a credit analyst. With two teams using the system, each one
+needed a screen. Chapter~\ref{ch:map} left the screen out on purpose: Spring
+Boot and Angular in the same chapter would have been too much at once. The
+screens start here.
+
+Both screens live in one Angular project, \texttt{hermes-web}, but they share
+nothing except a navigation bar. The Sales screen talks only to
+\texttt{hermes-proposals}. The Credit screen talks only to
+\texttt{hermes-credit}.
+
+% TODO(user): your experience with Angular or other front ends, if any.
+
+\begin{history}{2009--2016 \textperiodcentered{} Google}
+In 2009, Miško Hevery and Adam Abrons started a small library to make web
+forms easier to build. Hevery worked at Google, and the library grew there
+into AngularJS, released in 2010. It became one of the most used ways to
+build screens in the browser.
+
+AngularJS had problems that came from its design, mostly speed in big
+screens. So Google did something unusual: instead of fixing it, the team
+rewrote it from zero, in TypeScript, and released it in 2016 as Angular. The
+two share a name and little else. AngularJS stopped receiving updates at the
+end of 2021. When people say ``Angular'' today, they mean the new one. Hermes
+uses version 21.
+\end{history}
+
+\begin{concept}{Single-page application}
+A \emph{single-page application}, or SPA, is a website that loads one page
+once and then changes it in the browser, with JavaScript, instead of asking
+the server for a new page on every click. It talks to the back end only to
+get and send data, as JSON.
+
+\textbf{What it fixes:} the screen feels fast, like a program on your
+computer, and the back end only deals with data, not with HTML.
+
+\textbf{What it costs:} a lot of code runs in the browser, and you need a
+framework like Angular to keep it organized.
+\end{concept}
+
+\subsection*{Components}
+
+An Angular screen is built from \emph{components}. A component is one piece
+of the screen: an HTML template, a TypeScript class with its data, and its
+CSS. Small components fit together into bigger ones. This is the whole Sales
+page:
+
+\begin{code}[language=HTML]
+<h1>Register a proposal</h1>
+<app-proposal-form (registered)="load()" />
+<app-proposal-list [proposals]="proposals()" (selected)="select($event)" />
+@if (selected(); as proposal) {
+  <app-proposal-detail [proposal]="proposal" />
+}
+\end{code}
+\incode{hermes-web}{2cd8fe6}{the Sales page, one folder per feature}
+
+Three components make the page: a form, a list and a detail. Each tag that
+starts with \texttt{app-} is one of them. Two kinds of arrows connect them:
+
+\begin{itemize}
+  \item \texttt{[proposals]="..."} is an \emph{input}: the page gives data
+        to the list. Square brackets mean ``data goes in''.
+  \item \texttt{(registered)="load()"} is an \emph{output}: the form tells
+        the page that something happened, and the page reloads the list.
+        Round brackets mean ``an event comes out''.
+\end{itemize}
+
+\subsection*{Signals: how the list updates by itself}
+
+Look again at \texttt{[proposals]="proposals()"}. Why the parentheses? Because
+\texttt{proposals} is not a plain list. It is a \emph{signal}. Here is where
+it comes from, in the class of the page:
+
+\begin{code}[language=hfts]
+export class ProposalsPage {
+  private api = inject(ProposalsApi);
+
+  protected proposals = signal<Proposal[]>([]);
+
+  constructor() {
+    this.load();
+  }
+
+  protected load() {
+    this.api.list().subscribe((list) => this.proposals.set(list));
+  }
+}
+\end{code}
+\incode{hermes-web}{2cd8fe6}{the page keeps the list in a signal}
+
+A signal is a box that holds one value and remembers who reads it. You use it
+in three ways:
+
+\begin{itemize}
+  \item \texttt{signal<Proposal[]>([])} creates the box, with an empty list
+        inside.
+  \item \texttt{proposals()} reads what is in the box. A signal is read by
+        calling it, like a function. That is why the template has
+        parentheses.
+  \item \texttt{proposals.set(list)} puts a new value in the box.
+\end{itemize}
+
+The trick is in the second point. When the template reads
+\texttt{proposals()}, Angular takes note: this piece of the screen depends on
+that box. Later, when someone calls \texttt{set}, the box tells Angular ``I
+changed'', and Angular draws that piece again. Nobody has to tell the list to
+refresh. Here is the whole cycle, from the moment the salesperson clicks
+Register:
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm,
+    comp/.style={hf/reader, minimum width=30mm, font=\sffamily\footnotesize},
+    path/.style={hf/flow, draw=hfReader, line width=1.1pt},
+    lbl/.style={hf/note, fill=white, inner sep=1pt}]
+  \node[comp] (form) at (0,0)   {\texttt{proposal-form}\\the salesperson\\clicks Register};
+  \node[comp] (page) at (5,0) {\texttt{ProposalsPage}\\runs \texttt{load()}};
+  \node[hf/reader, minimum width=30mm, font=\sffamily\footnotesize] (api) at (10.8,0)
+    {\texttt{hermes-proposals}\\\texttt{GET /proposals}};
+  \node[hf/bus, minimum width=30mm, font=\sffamily\footnotesize] (sig) at (5,-2.6)
+    {signal \texttt{proposals}\\holds the list};
+  \node[comp] (list) at (0,-2.6) {\texttt{proposal-list}\\on the screen,\\with the new row};
+  \draw[path] (form) -- node[lbl, above] {\texttt{(registered)}} (page);
+  \draw[path] ([yshift=2mm]page.east) -- node[lbl, above] {asks for the list} ([yshift=2mm]api.west);
+  \draw[path] ([yshift=-2mm]api.west) -- node[lbl, below] {the list} ([yshift=-2mm]page.east);
+  \draw[path] (page) -- node[lbl, right] {\texttt{proposals.set(list)}} (sig);
+  \draw[path] (sig) -- node[lbl, above] {``I changed''} (list);
+  \node[hf/step, above left=0mm and 0mm of form.north west] {1};
+  \node[hf/step, above left=0mm and 0mm of page.north west] {2};
+  \node[hf/step, above left=0mm and 0mm of sig.north west] {3};
+  \node[hf/step, above left=0mm and 0mm of list.north west] {4};
+\end{tikzpicture}
+\end{center}
+
+\begin{enumerate}
+  \item The salesperson registers a proposal. The form sends the output
+        \texttt{(registered)} to the page.
+  \item The page runs \texttt{load()}, which asks \texttt{hermes-proposals}
+        for the list. The answer comes back a moment later.
+  \item \texttt{load()} puts the new list in the signal with
+        \texttt{set}.
+  \item The signal tells Angular it changed. Angular draws again only what
+        reads \texttt{proposals()}: the list. The new proposal appears.
+\end{enumerate}
+
+Without the signal, the page would have to find the list component and tell
+it to refresh, and every new piece of screen that shows proposals would need
+the same call. With the signal, each piece of the screen only says what it
+reads, and Angular keeps it up to date. Signals have more to them, but this
+is all the two screens of Hermes use.
+
+\subsection*{One class talks HTTP}
+
+None of the components talks to the server. That job belongs to one class
+per back end:
+
+\begin{code}[language=hfts]
+@Injectable({
+  providedIn: 'root',
+})
+export class ProposalsApi {
+  private http = inject(HttpClient);
+
+  list() {
+    return this.http.get<Proposal[]>('/proposals');
+  }
+
+  get(id: string) {
+    return this.http.get<Proposal>(`/proposals/${id}`);
+  }
+
+  create(proposal: Omit<Proposal, 'id'>) {
+    return this.http.post<Proposal>('/proposals', proposal);
+  }
+}
+\end{code}
+\incode{hermes-web}{2cd8fe6}{the only place that talks HTTP to proposals}
+
+In Angular, a class like this is called a \emph{service}. The word is the
+same as in ``microservice'', but here it means a class that does one job for
+the components. \texttt{HttpClient} is the class of Angular that sends HTTP
+requests. Each method returns the request ready to go, and the component
+starts it with \texttt{subscribe}, giving the code to run when the answer
+arrives.
+
+Look at \texttt{inject(HttpClient)}. The class does not create its
+\texttt{HttpClient}; it asks Angular for one. And the components do the same
+with \texttt{inject(ProposalsApi)}. This is dependency injection, the same
+idea Spring used in Chapter~\ref{ch:map}, when the controller received its
+repository in the constructor. \texttt{providedIn: 'root'} tells Angular to
+create one \texttt{ProposalsApi} and share it with everyone who asks.
+
+The Credit screen has the same structure, with its own class,
+\texttt{AnalysesApi}, that only knows the address of Credit. When the
+analyst leaves the income empty, Credit answers 400 with a ProblemDetail, as
+in Chapter~\ref{ch:map}, and the form shows its \texttt{detail}: ``Income is
+required to score the proposal''. That is \uc{UC-02 3a} on the screen.
+
+\subsection*{Two back ends, one address}
+
+The screen asks for \texttt{/proposals}, not for
+\texttt{http://localhost:8080/proposals}. How does the request find the right
+service?
+
+During development, Angular runs its own small web server, on port 4200.
+That server has a \emph{proxy}: a list of paths, and where to send each one.
+
+\begin{code}[language={}]
+{
+  "/proposals": {
+    "target": "http://localhost:8080",
+    "secure": false
+  },
+  "/analyses": {
+    "target": "http://localhost:8081",
+    "secure": false
+  }
+}
+\end{code}
+\incode{hermes-web}{542e7db}{the dev proxy sends /analyses to Credit}
+
+The browser thinks it talks to one server, the one on port 4200. That
+matters, because browsers have a security rule, called \emph{CORS}, that
+blocks a page from calling a server at a different address unless that server
+allows it. With the proxy, there is only one address, and the services need
+no CORS configuration.
+
+There is a side effect. The screens could not live at \texttt{/proposals}
+and \texttt{/analyses}, because those paths go to the APIs. So the Sales
+screen is \texttt{/sales} and the Credit screen is \texttt{/credit}.
+
+\subsection*{Where am I?}
+
+The first people who used the two screens said they got lost. The page had
+two links, ``Sales'' and ``Credit'', but they looked like one word, and
+nothing showed which screen was open. Nobody had asked for navigation,
+because nobody knew it was needed until they used the screens. It is the
+Requirements Uncertainty Principle from Chapter~\ref{ch:map}, in a small
+way.
+
+The fix was a navigation bar, and one Angular attribute,
+\texttt{routerLinkActive}, which adds a CSS class to the link of the screen
+that is open:
+
+\begin{code}[language=HTML]
+<nav>
+  <a routerLink="/sales" routerLinkActive="active">Sales</a>
+  <a routerLink="/credit" routerLinkActive="active">Credit</a>
+</nav>
+<router-outlet />
+\end{code}
+\incode{hermes-web}{832878c}{highlight the link of the current screen}
+
+\texttt{routerLink} changes the screen without reloading the page, which is
+the single-page application at work. \texttt{<router-outlet />} is the place
+where the open screen is drawn.
+
+% ===========================================================================
+% Going further: ideas the chapter only names, so the main story is not interrupted.
+% ===========================================================================
+\section{Going further}
+\label{sec:two-further}
+
+This section goes deeper into ideas that the chapter only named, so the main
+story would not stop in the middle. You can read it now or come back later.
+
+\subsection*{Normal forms}
+
+A \emph{normal form} is a test that a table passes or fails. Codd defined the
+first one in 1970 and the second and third in 1971. Each one includes the one
+before it: a table in third normal form is also in the second and the first.
+
+In the drawings below, an \underline{underlined} column is part of the
+primary key, a \hfbad{red} value is a fact in the wrong place, and a green
+arrow is a foreign key, going from the column to the table it points to.
+
+\textbf{First normal form (1NF): one value per cell.} A \emph{cell} is where
+a row meets a column. It must hold one value, never a list. On the left, the
+documents of a proposal are written as text in one cell. To find every
+proposal with an invoice, you would have to cut that text apart. On the
+right, each document is a row of its own.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[hf/table, anchor=east, label={[hf/tablename]north west:proposals}] (b) at (3.4,0) {%
+    \begin{tabular}{lll}
+      \hfpk{id} & farmer & documents \\ \hline
+      1 & Joao Silva & \hfbad{invoice, proof of income}
+    \end{tabular}};
+  \node[hf/note, text=hfAlert, below=3mm of b] {fails 1NF: a list in one cell};
+  \draw[hf/flow, draw=black!40] (3.6,0) -- (4.4,0);
+  \node[hf/table, anchor=south west, label={[hf/tablename]north west:proposals}] (p) at (4.6,0.35) {%
+    \begin{tabular}{ll}
+      \hfpk{id} & farmer \\ \hline
+      1 & Joao Silva
+    \end{tabular}};
+  \node[hf/table, anchor=north west, label={[hf/tablename]north west:documents}] (d) at (4.6,-0.35) {%
+    \begin{tabular}{lll}
+      \hfpk{id} & proposal\_id & type \\ \hline
+      10 & 1 & invoice \\
+      11 & 1 & proof of income
+    \end{tabular}};
+  \draw[hf/fk] (d.east) -- ++(0.4,0) |- (p.east);
+  \node[hf/note, below=3mm of d] {passes 1NF};
+\end{tikzpicture}
+\end{center}
+
+MongoDB breaks this rule on purpose: in Chapter~\ref{ch:map} the documents
+are a list inside the proposal. That is embedding, and it works there
+because the proposal is always read as a whole.
+
+\textbf{Second normal form (2NF): depend on the whole key.} This test only
+matters when the primary key has more than one column. On the left, the key
+is the pair \texttt{proposal\_id} and \texttt{document\_type}. But
+\texttt{farmer} depends only on \texttt{proposal\_id}, half of the key, so it
+is repeated in every document of the proposal. On the right, the farmer moves
+to a table whose key is the proposal alone.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[hf/table, anchor=east, label={[hf/tablename]north west:proposal\_documents}] (b) at (3.4,0) {%
+    \begin{tabular}{lll}
+      \hfpk{proposal\_id} & \hfpk{document\_type} & farmer \\ \hline
+      1 & invoice & \hfbad{Joao Silva} \\
+      1 & proof of income & \hfbad{Joao Silva}
+    \end{tabular}};
+  \node[hf/note, text=hfAlert, below=3mm of b] {fails 2NF: farmer depends on half of the key};
+  \draw[hf/flow, draw=black!40] (3.6,0) -- (4.4,0);
+  \node[hf/table, anchor=south west, label={[hf/tablename]north west:proposals}] (p) at (4.6,0.35) {%
+    \begin{tabular}{ll}
+      \hfpk{id} & farmer \\ \hline
+      1 & Joao Silva
+    \end{tabular}};
+  \node[hf/table, anchor=north west, label={[hf/tablename]north west:proposal\_documents}] (d) at (4.6,-0.35) {%
+    \begin{tabular}{ll}
+      \hfpk{proposal\_id} & \hfpk{document\_type} \\ \hline
+      1 & invoice \\
+      1 & proof of income
+    \end{tabular}};
+  \draw[hf/fk] (d.east) -- ++(0.4,0) |- (p.east);
+  \node[hf/note, below=3mm of d] {passes 2NF};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Third normal form (3NF): nothing but the key.} No column may depend
+on another column that is not the key. On the left, Credit has added the
+farmer's city to the analyses. The city is not a fact about the analysis; it
+is a fact about the farmer. When Joao Silva moves, you must change every
+analysis of his, or some rows will say one city and some another. On the
+right, the farmer and the city live in one row, and each analysis points to
+it.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[hf/table, anchor=east, label={[hf/tablename]north west:analyses}] (b) at (3.4,0) {%
+    \begin{tabular}{llll}
+      \hfpk{id} & farmer & city & amount \\ \hline
+      1 & Joao Silva & \hfbad{Rio Verde} & 120000.00 \\
+      2 & Joao Silva & \hfbad{Rio Verde} & 450000.00
+    \end{tabular}};
+  \node[hf/note, text=hfAlert, below=3mm of b] {fails 3NF: city depends on the farmer, not on the key};
+  \draw[hf/flow, draw=black!40] (3.6,0) -- (4.4,0);
+  \node[hf/table, anchor=south west, label={[hf/tablename]north west:farmers}] (p) at (4.6,0.35) {%
+    \begin{tabular}{lll}
+      \hfpk{id} & name & city \\ \hline
+      7 & Joao Silva & Rio Verde
+    \end{tabular}};
+  \node[hf/table, anchor=north west, label={[hf/tablename]north west:analyses}] (d) at (4.6,-0.35) {%
+    \begin{tabular}{lll}
+      \hfpk{id} & farmer\_id & amount \\ \hline
+      1 & 7 & 120000.00 \\
+      2 & 7 & 450000.00
+    \end{tabular}};
+  \draw[hf/fk] (d.east) -- ++(0.4,0) |- (p.east);
+  \node[hf/note, below=3mm of d] {passes 3NF};
+\end{tikzpicture}
+\end{center}
+
+\begin{concept}{Normal forms}
+A short way to remember the three comes from William Kent, in 1983: every
+column must give a fact about the key (1NF), the whole key (2NF), and nothing
+but the key (3NF).
+
+\textbf{What it fixes:} data that disagrees with itself. When each fact lives
+in one place, you change it in one place.
+
+\textbf{What it costs:} more tables, and joins to put them back together
+every time you read. That is why some systems copy data on purpose, when
+reading fast matters more than writing once. This is called
+\emph{denormalization}, and embedding in MongoDB is one kind of it.
+\end{concept}
+
+There are more normal forms after the third. Raymond Boyce and Codd defined a
+stricter version of the third in 1974, and others came later. In daily work,
+a table in third normal form is the usual target.
+
+Now look at the real table of Credit again. Strictly, it passes all three
+today: the \texttt{farmer} column holds only a name, and every column says
+something about the analysis. But the name is already a fact about the
+farmer, copied into every analysis. The first time someone adds a second fact
+about the farmer, like the city in the last drawing, the third normal form
+breaks.
+
+\subsection*{InnoDB: the table is a tree}
+
+\begin{history}{1995 \textperiodcentered{} Finland}
+In 1995, Heikki Tuuri, a Finnish computer scientist, founded a small company
+called Innobase and started writing a storage engine: InnoDB. In 2001 it
+began to ship with MySQL as an option, and it brought what the default
+engine of the time did not have: transactions and foreign keys. In 2005
+Oracle bought Innobase. In 2010 Oracle bought Sun Microsystems, which owned
+MySQL, and the same year InnoDB became the default engine of MySQL.
+\end{history}
+
+In Section~\ref{sec:two-indexes}, the B-tree was an extra structure next to
+the table. InnoDB goes one step
+further: the table itself is a tree.
+
+It uses the \emph{B+tree}, a variant of the B-tree with two differences. All
+the data lives in the \emph{leaves}, the pages at the bottom; the pages
+above only hold keys to guide the search. And each leaf is linked to the
+next one, so reading a range in order, like every id from 100 to 200, walks
+sideways along the bottom without climbing back up.
+
+\textbf{The table is sorted by the primary key.} The leaves of the main tree
+hold whole rows, in the order of \texttt{id}. This is called a
+\emph{clustered index}: the rows are stored in the order of the key. That is
+why a search by id is the fastest search there is. The walk down the tree
+ends on the row itself.
+
+\textbf{Every other index is a second tree.} An index on \texttt{farmer} is
+a \emph{secondary index}: a separate B+tree, sorted by farmer, whose leaves
+hold the farmer and the primary key of the row, not the row. So the search
+for Lucas walks two trees. The index on \texttt{farmer} gives the id, 2, and
+the main tree turns the id into the row:
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm,
+    page/.style={hf/table, font=\sffamily\scriptsize},
+    edge/.style={hf/flow, draw=black!35},
+    path/.style={hf/flow, draw=hfReader, line width=1.4pt},
+    hit/.style={}]
+  \newcommand\hit[1]{\textbf{\color{hfReader}#1}}
+  % the secondary index on farmer
+  \node[hf/note] at (0,0.75) {index on \texttt{farmer} (secondary)};
+  \node[page] (iroot) at (0,0) {\begin{tabular}{c} Lucas \end{tabular}};
+  \node[page] (il) at (-1.5,-1.6) {\begin{tabular}{ll} Ana & $\to$ 4 \\ Joao Silva & $\to$ 1 \end{tabular}};
+  \node[page] (ir) at (1.5,-1.6)  {\begin{tabular}{ll} \hit{Lucas} & \hit{$\to$ 2} \\ Rita & $\to$ 3 \end{tabular}};
+  \draw[edge] (iroot.south) -- (il.north);
+  \draw[path] (iroot.south) -- (ir.north);
+  % the table itself, clustered by id
+  \node[hf/note] at (7.6,0.75) {the table itself, sorted by \texttt{id} (clustered)};
+  \node[page] (troot) at (7.6,0) {\begin{tabular}{c} 3 \end{tabular}};
+  \node[page] (tl) at (5.5,-1.6) {\begin{tabular}{lll} 1 & Joao Silva & 120000.00 \\ \hit{2} & \hit{Lucas} & \hit{90000.00} \end{tabular}};
+  \node[page] (tr) at (9.9,-1.6) {\begin{tabular}{lll} 3 & Rita & 30000.00 \\ 4 & Ana & 75000.00 \end{tabular}};
+  \draw[path] (troot.south) -- (tl.north);
+  \draw[edge] (troot.south) -- (tr.north);
+  % the jump from one tree to the other
+  \draw[path] (ir.north east) to[out=60, in=180] node[hf/note, above left, text=hfReader, pos=0.5] {id 2} (troot.west);
+  \draw[black!35, densely dotted, line width=0.8pt] (tl.east) -- (tr.west);
+  \node[hf/note, below=1mm of tl.south east, anchor=north] {leaves linked in order};
+\end{tikzpicture}
+\end{center}
+
+Three things follow from this, and they are worth knowing:
+
+\begin{itemize}
+  \item A search by a secondary index costs two walks: one in the index, one
+        in the table. Still a few pages, but more than a search by id.
+  \item The primary key is copied into every secondary index. A short key,
+        like the \texttt{bigint} of Credit, keeps every index small.
+  \item With \texttt{AUTO\_INCREMENT}, each new row has the biggest id so
+        far, so it goes to the end of the tree. A random key, like a UUID,
+        lands in the middle of full pages, and InnoDB has to split them to
+        make room.
+\end{itemize}
+
+% ===========================================================================
 \section*{In the interview}
 
-% Two to four interview boxes: \begin{interview}{question} model answer, 60 to 90 seconds \end{interview}
+\begin{interview}{Why does each service have its own database?}
+Because the database is part of the service, not something shared. In my
+project, Hermes, the proposals service and the credit service each own their
+data, and no service reads another service's database. If Credit needs
+something from Sales, it has to call the API of Sales. The reason is
+independence: Sales can change the shape of a proposal, or even change its
+database, and nothing outside breaks, as long as the API stays the same. If
+Credit read the Mongo collection directly, that collection would become a
+hidden contract. Owning the data also let each service pick the right engine.
+Proposals has documents with fields nobody knows in advance, so it uses
+MongoDB. Credit has analyses with fixed fields, so it uses MySQL. The price
+is that I can't join data from two domains in one query, and some data is
+copied, like the farmer's name. I wrote that decision down in an ADR.
+\end{interview}
+
+\begin{interview}{How do you decide where to put an index?}
+I start from the queries, not from the table. An index makes a search fast,
+but every insert and update has to maintain it, so I only index columns that
+someone really searches by. Then I check with EXPLAIN. Take the credit
+table: with a hundred thousand analyses, a search by farmer without an index
+is a full table scan. MySQL reads every row, and it takes about forty
+milliseconds. With an index on the farmer column, it becomes an index
+lookup and takes a few hundredths of a millisecond. The primary key is already
+an index, so searching by id is fast from the start. In the real service
+there is no index on farmer yet, because nobody searches by farmer yet. When
+that request comes, the index comes with it. In MongoDB it is the same idea,
+and for fields nobody knows in advance there is the wildcard index.
+\end{interview}
+
+\begin{interview}{How does an Angular app talk to a back end?}
+Through a service class that uses HttpClient. In my project I have one class
+per back end: ProposalsApi talks to the proposals service and AnalysesApi
+talks to the credit service. The components never call HTTP themselves. They
+get the API class by dependency injection, call a method, and subscribe to
+the answer. The answer goes into a signal, and the screen updates by itself.
+Errors come back as a ProblemDetail, so the form can show the message of the
+server, for example that income is required to score. In development, the
+Angular dev server has a proxy: it sends /proposals to one service and
+/analyses to the other. The browser sees one address, so I don't need CORS.
+The screens are separate, Sales and Credit, with a navigation bar between
+them, because each team only works with its own service for now.
+\end{interview}
