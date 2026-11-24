@@ -36,7 +36,7 @@ flowchart LR
 - **credit uses MySQL.** An analysis is a row with fixed columns, easy to query and compare.
 - **The rule of ADR 0001 stays:** a service never reads another service's database. The only way into a domain is its API.
 - **Locally**, both run in Docker Compose (`hermes-infra/local`), one container per engine.
-- Where each database runs on AWS is not decided here. That comes with the use case that puts the system on AWS (UC-14).
+- Where each database runs on AWS is not decided here. That comes with the use case that puts the system on AWS, when someone asks for it.
 
 This ADR replaces one line of ADR 0001: "One schema per service, in a single database instance." Everything else in ADR 0001 still holds.
 
