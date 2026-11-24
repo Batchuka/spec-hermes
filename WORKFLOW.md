@@ -8,14 +8,16 @@ Por isso o Hermes é uma **história de casos de uso**. A arquitetura final (mes
 
 ## A ordem
 
-O [Project](https://github.com/users/Batchuka/projects/13) tem o campo **Act**, e a ordem é a dos casos de uso (UC-01, UC-02...):
+O [Project](https://github.com/users/Batchuka/projects/13) tem o campo **Act**. Os atos são o rumo provável da história, escrito como hipótese em [`docs/direction.md`](docs/direction.md):
 
-1. **Cada setor pede a sua ferramenta** (UC-01 a UC-05): serviços independentes e uma tela.
-2. **"Por que eu tenho que redigitar?"** (UC-06, UC-07): a primeira integração, ingênua; a coreografia nasce sozinha.
-3. **Um mestre** (UC-08 a UC-11): o orquestrador nasce observador e vira mestre.
-4. **O volume chega** (UC-12): 5.000 propostas por dia.
-5. **Gente de fora** (UC-13): login e papéis.
-6. **Mostrar e entregar** (UC-14 a UC-16): AWS, pipeline, extras.
+1. **Cada setor pede a sua ferramenta**: serviços independentes, cada um com sua tela.
+2. **"Por que eu tenho que redigitar?"**: a primeira integração, ingênua; a coreografia nasce sozinha.
+3. **Um mestre**: o orquestrador nasce observador e vira mestre.
+4. **O volume chega**: muitas propostas por dia.
+5. **Gente de fora**: login e papéis.
+6. **Mostrar e entregar**: AWS, pipeline.
+
+**Os casos de uso não são escritos de antemão.** O próximo UC só é escrito quando o anterior fecha, a partir do que ele mostrou. Escrever 16 de uma vez virou roteiro: dois deles ficaram errados antes de chegar a vez deles. Se a história real for por outro caminho, muda o `direction.md`, não a história.
 
 A entrevista técnica na John Deere é na quarta, 25/11/2026, às 13:30, em inglês. Vou na ordem e no meu ritmo; o que estiver pronto até lá, ótimo.
 
@@ -27,11 +29,17 @@ A demanda de um setor, no formato de Alistair Cockburn (*Writing Effective Use C
 
 ### Implementação (nos repositórios `hermes-*`)
 
-O título começa pelo caso de uso (`UC-06 · ...`). As versões v0 → vN estão em checklist (veja "Código", abaixo).
+**Os repositórios de código começam vazios.** Não há código nem bootstrap antes de um caso de uso pedir. Uma issue de implementação só nasce quando, trabalhando num UC, a gente entende que precisa daquilo: um banco local, um serviço, uma tela. Nesse momento:
+
+1. Comento no UC o que descobrimos e por que precisamos da issue.
+2. Crio a issue no repositório certo, com o título começando pelo caso de uso (`UC-01 · ...`), um parágrafo no topo com o porquê, e as versões v0 → vN em checklist (veja "Código", abaixo).
+3. Penduro a issue no UC como sub-issue e a coloco no Project, no ato do UC.
+
+Nada de issue para um UC que ainda não chegou.
 
 ### Capítulo (no `spec-hermes`)
 
-Cada capítulo explica os casos de uso de um ato.
+Os capítulos também não são planejados de antemão. Um capítulo nasce quando um caso de uso mostra o que precisa ser explicado, e a issue dele é criada nesse momento, ligada ao UC. Os assuntos que provavelmente vão aparecer (filas, orquestrador, login, AWS) estão em [`docs/direction.md`](docs/direction.md), como hipótese.
 
 Os capítulos andam **em ordem, um por vez, no meu ritmo**, sem chats em paralelo. Um chat **Opus** por capítulo, aberto nesta pasta quando eu chegar nele. Os chats das issues de código são **Sonnet**, e eu os crio conforme avanço. **Eu conduzo cada passo.** O Claude não escreve, não commita e não abre PR sem eu mandar. Ao abrir o chat, ele só lê a issue, diz em poucas linhas o que entendeu e espera. Depois, na ordem que eu decidir:
 
@@ -46,7 +54,7 @@ Os capítulos andam **em ordem, um por vez, no meu ritmo**, sem chats em paralel
 Modo híbrido:
 
 - **Eu digito a lógica que vou explicar**: Java em `src/` e TypeScript do Angular em `src/app/`. Para o Terraform, eu digito com guia.
-- **O Claude escreve e commita o andaime**: `pom.xml`, `Dockerfile`, CI, `docker-compose`, scripts do LocalStack, realm do Keycloak, `application.yml`, a classe `*Application` vazia. E toda a documentação deste hub.
+- **O andaime também nasce numa issue.** `pom.xml`, `Dockerfile`, CI, `docker-compose` e afins só aparecem quando uma issue precisa deles. O Claude pode escrevê-los e commitá-los dentro dessa issue, se eu pedir. Ele também escreve toda a documentação deste hub.
 - **O Claude guia por versão**: "arquivo:linha hoje está assim → mude para → por quê (1 a 3 linhas)", e como conferir.
 - Toda issue começa numa **v0 ingênua**. Eu rodo, vejo quebrar, e cada versão seguinte corrige **uma** coisa que eu observei.
 
@@ -91,11 +99,7 @@ Tudo lado a lado em `C:\Projetos\hermes\`: `spec-hermes`, `hermes-orchestrator`,
 
 ## Rodar localmente
 
-```powershell
-cd C:\Projetos\hermes\hermes-infra\local; docker compose up -d
-```
-
-Depois, `./mvnw spring-boot:run` em cada app. Os detalhes estão no README do `hermes-infra`.
+Ainda não há nada para rodar. Cada repositório explica como rodar no README que nasce com a primeira issue dele.
 
 ## AWS
 

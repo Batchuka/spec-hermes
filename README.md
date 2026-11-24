@@ -10,17 +10,19 @@ This hub holds the book, the decisions and the workflow.
 
 ## Repositories
 
-| Repository | Role | Stack |
-| --- | --- | --- |
-| [`hermes-orchestrator`](https://github.com/Batchuka/hermes-orchestrator) | the master: runs the route of each proposal | Spring Boot, MySQL, EventBridge, SQS |
-| [`hermes-proposals`](https://github.com/Batchuka/hermes-proposals) | proposals and their documents | Spring Boot, MongoDB |
-| [`hermes-credit`](https://github.com/Batchuka/hermes-credit) | credit analysis: score, limit, suggested decision | Spring Boot, MySQL |
-| [`hermes-contracts`](https://github.com/Batchuka/hermes-contracts) | contract, installments (Price or SAC), disbursement | Spring Boot, MySQL |
-| [`hermes-web`](https://github.com/Batchuka/hermes-web) | the screen | Angular, Keycloak login |
-| [`hermes-infra`](https://github.com/Batchuka/hermes-infra) | local stack and the AWS environment | Docker Compose, LocalStack, Keycloak, Terraform |
-| [`spec-hermes`](https://github.com/Batchuka/spec-hermes) | this hub: book, ADRs, practice, workflow | LaTeX, Markdown |
+The code repositories start **empty**. Nothing is built, not even a project skeleton, until a use case asks for it.
 
-Issues live in each repository and on the [Hermes project](https://github.com/users/Batchuka/projects/13). How I work is in [`WORKFLOW.md`](WORKFLOW.md).
+| Repository | Role |
+| --- | --- |
+| [`hermes-proposals`](https://github.com/Batchuka/hermes-proposals) | proposals and their documents |
+| [`hermes-credit`](https://github.com/Batchuka/hermes-credit) | credit analysis |
+| [`hermes-contracts`](https://github.com/Batchuka/hermes-contracts) | contracts, installments and payments |
+| [`hermes-web`](https://github.com/Batchuka/hermes-web) | the screen |
+| [`hermes-infra`](https://github.com/Batchuka/hermes-infra) | what the services need to run, locally and on AWS |
+| [`hermes-orchestrator`](https://github.com/Batchuka/hermes-orchestrator) | born only if the business ever needs one process across the services |
+| [`spec-hermes`](https://github.com/Batchuka/spec-hermes) | this hub: use cases, book, ADRs, practice, workflow |
+
+The backlog is a story of **use cases** (UC-01, UC-02...), issues in this hub, written one at a time: the next one only when the previous one is closed. Where the story will probably go is in [`docs/direction.md`](docs/direction.md), as hypotheses, not requests. Implementation issues in the code repositories are created only when working on a use case shows they are needed. Everything is on the [Hermes project](https://github.com/users/Batchuka/projects/13). How I work is in [`WORKFLOW.md`](WORKFLOW.md).
 
 ## Architecture
 
