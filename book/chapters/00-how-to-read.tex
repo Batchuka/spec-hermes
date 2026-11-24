@@ -27,12 +27,11 @@ Here is what happens to the proposal:
   \item The money goes to the dealer who sells the tractor.
 \end{enumerate}
 
-In the project, each of these jobs belongs to a program of its own. We call
-each program a \emph{service}. There are three of them: \emph{proposals},
-\emph{credit} and \emph{contracts}. A fourth service, the
-\emph{orchestrator}, tells the other three what to do and in which order. A
-screen in the browser, a login server and two databases complete the system.
-Everything runs on AWS, Amazon's cloud.
+In the project, each of these jobs ends up in a program of its own. We call
+each program a \emph{service}. The first two are \emph{proposals} and
+\emph{credit}, each with its own screen and its own database. Where the
+system goes from there is not decided in advance: a new piece only appears
+when someone asks for it, and the book follows the system as it grows.
 
 The design of this system is not new to me. Between 2023 and 2024, at a
 foreign trade company, I built the same design for import processes. This
@@ -44,7 +43,7 @@ and cheap enough to run on AWS for an hour.
 Every technology in this book was invented to fix a problem. If you know the
 problem, you know when to use the technology, and when not to.
 
-Take message queues, the subject of Chapter~\ref{ch:queues}. Before queues, one program
+Take message queues. Before queues, one program
 called another directly. If the second program was down, the call failed and
 the work was lost. A queue sits between the two programs and holds the work
 until the second one is ready. Once you know that, you will not reach for a
