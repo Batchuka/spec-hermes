@@ -64,7 +64,7 @@
 \newsavebox\hf@measure
 \newlength\hf@need
 % #1 = box environment, #2 = title, #3 = body
-% A box shorter than 60% of the page never splits: if it does not fit, it
+% A box shorter than 30% of the page never splits: if it does not fit, it
 % moves whole to the next page (a heading right before it moves with it).
 % Only a longer box may split, and only if 40% of it fits on this page.
 \newcommand\hf@keeptogether[3]{%
@@ -72,7 +72,7 @@
     \begin{#1}[unbreakable]{#2}#3\end{#1}}}%
   \setlength\hf@need{\ht\hf@measure}%
   \addtolength\hf@need{\dp\hf@measure}%
-  \ifdim\hf@need<0.6\textheight
+  \ifdim\hf@need<0.3\textheight
     \begin{#1}[unbreakable]{#2}#3\end{#1}%
   \else
     \setlength\hf@need{0.4\hf@need}%
@@ -227,6 +227,22 @@
   hf/pain/.style={line width=0.8pt, draw=hfAlert},
   hf/note/.style={font=\sffamily\footnotesize, text=black!65, align=center},
   hf/lifeline/.style={draw=black!25, line width=0.6pt},
+  % a database table drawn with its rows:
+  %   \node[hf/table, label={[hf/tablename]north west:analyses}] (a) {%
+  %     \begin{tabular}{ll} \hfpk{id} & farmer \\ \hline 1 & Joao Silva \end{tabular}};
+  hf/table/.style={draw=hfStore, fill=hfStore!6, line width=0.8pt, rounded corners=2pt,
+    inner sep=3pt, font=\sffamily\footnotesize},
+  hf/tablename/.style={font=\sffamily\footnotesize\bfseries, text=hfStore,
+    anchor=south west, inner sep=1pt, yshift=1pt},
+  % a foreign key: from the column that points to the table it points to
+  hf/fk/.style={hf/flow, draw=hfStore},
+  % a numbered step on a path: \node[hf/step, left=2mm of x] {1};
+  hf/step/.style={circle, fill=hfReader, text=white, font=\sffamily\scriptsize\bfseries,
+    inner sep=0pt, minimum size=4.2mm},
 }
+% inside a drawn table: \hfpk{id} marks a primary key column (underlined),
+% \hfbad{value} marks a fact in the wrong place (red)
+\newcommand\hfpk[1]{\underline{#1}}
+\newcommand\hfbad[1]{{\color{hfAlert}\bfseries #1}}
 
 \endinput
