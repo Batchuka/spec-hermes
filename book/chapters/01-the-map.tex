@@ -7,7 +7,7 @@
 % the files and REST (record, controller, POST/GET, 200/400/404, ProblemDetail);
 % what broke (int vs Integer in Jackson 3, @Valid on the element, BigDecimal in a Map);
 % tests (@WebMvcTest, @DataMongoTest with Testcontainers, split test starters).
-% Not here: how the services are connected into one process. That is chapter 7 (One Master).
+% Not here: how the services are connected into one process. Nobody asked for it yet.
 % Every code block is copied from hermes-proposals at 9098c81; the terminal output was taken
 % on 2026-11-23 (./mvnw verify: 4 tests green; the app run with -Duser.language=en).
 
@@ -1051,6 +1051,117 @@ $ ./mvnw verify
 Four tests, all green: the two of the web layer, the one of the data layer,
 and the \texttt{contextLoads} test that came with the project, which only
 checks that the service starts.
+
+\section{Going further: the Maven Wrapper}
+
+Open the repository of the service and you will find three files that nobody
+in this chapter wrote: \texttt{mvnw}, \texttt{mvnw.cmd} and
+\texttt{.mvn/wrapper/maven-wrapper.properties}. Spring Initializr put them
+there. Most people never look at them, and some delete them. Here is what
+they are, and why you should keep them.
+
+\subsection*{The problem: which Maven?}
+
+To build a Java project with Maven, you need Maven installed. That raises two
+questions. Is it installed on this machine? And which version? Your laptop
+may have one version, a new colleague another, and the build server a third.
+Most of the time it doesn't matter. The day it matters, the same code builds
+on one machine and fails on another, and you lose an afternoon finding out
+why.
+
+\begin{history}{2013 \textperiodcentered{} the wrapper}
+The Gradle build tool solved this first, with a small script called the
+Gradle Wrapper. In 2013, Takari, a company led by Jason van Zyl, one of the
+creators of Maven, made the same thing for Maven. It was used so widely that
+it later moved into the Apache Maven project itself, and today Spring
+Initializr adds it to every Maven project.
+\end{history}
+
+\subsection*{The three files}
+
+\begin{itemize}
+  \item \texttt{mvnw}: a script for Linux and macOS.
+  \item \texttt{mvnw.cmd}: the same script for Windows.
+  \item \texttt{.mvn/wrapper/maven-wrapper.properties}: says which Maven the
+        project uses.
+\end{itemize}
+
+This is the properties file of \texttt{hermes-proposals}:
+
+\begin{code}[language={}]
+wrapperVersion=3.3.4
+distributionType=only-script
+distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.1/apache-maven-3.10.1-bin.zip
+\end{code}
+
+The project uses Maven 3.10.1, exactly. When you run \texttt{./mvnw verify}
+instead of \texttt{mvn verify}, the script checks if that version is already
+on the machine, in a folder under \texttt{\textasciitilde/.m2/wrapper}. If it
+is not, the script downloads it once and keeps it. Then it runs the build
+with it. Nobody installs Maven, and everybody builds with the same version.
+
+\texttt{only-script} means the wrapper is only the two scripts. Older
+versions also needed a small \texttt{.jar} file inside \texttt{.mvn}, and a
+binary file in a repository always made people uneasy. This version doesn't
+need it.
+
+\subsection*{Keep them or delete them?}
+
+Keep them, and commit them. They are a few kilobytes, and they turn ``install
+Maven, the right version'' into nothing at all. The build server benefits
+most: it runs \texttt{./mvnw} and gets the same Maven as your laptop. Change
+the version in one place, the properties file, and every machine follows.
+
+The only reason to delete them is a company that installs one Maven on every
+machine and forbids downloads during the build. Even then, the wrapper does
+no harm.
+
+\subsection*{The trap: a script that cannot run}
+
+On Linux and macOS, a file can only run as a program if it has the
+\emph{executable} permission. Git stores that permission with the file. But
+Windows has no such permission, so a project created or committed on Windows
+can end up with \texttt{mvnw} stored as a plain file. That is what happened
+here:
+
+\begin{terminal}
+$ git ls-files -s mvnw
+100644 bd8896bf2217b46faa0291585e01ac1a3441a958 0	mvnw
+\end{terminal}
+
+The \texttt{100644} is the mode of a normal file. On Windows nothing breaks,
+because Windows runs \texttt{mvnw.cmd}. But clone the same repository on
+Linux, as any build server does, and the script refuses to run:
+
+\begin{terminal}
+$ ls -l mvnw
+-rw-r--r--    1 root     root         11790 Nov 24 03:05 mvnw
+$ ./mvnw --version
+sh: ./mvnw: Permission denied
+\end{terminal}
+
+The fix is one command, which tells Git to store the file as executable,
+with mode \texttt{100755}:
+
+\begin{terminal}
+$ git update-index --chmod=+x mvnw
+$ git ls-files -s mvnw
+100755 bd8896bf2217b46faa0291585e01ac1a3441a958 0	mvnw
+\end{terminal}
+
+One more file in the repository protects the wrapper. It is called
+\texttt{.gitattributes}, and it has these two lines:
+
+\begin{code}[language={}]
+/mvnw text eol=lf
+*.cmd text eol=crlf
+\end{code}
+
+Windows ends each line of a text file with two characters, called CRLF.
+Linux and macOS use one, called LF. A shell script with Windows line endings
+fails on Linux with strange errors. These two lines tell Git to always keep
+\texttt{mvnw} with LF and \texttt{mvnw.cmd} with CRLF, whatever machine you
+are on.
 
 \section*{In the interview}
 
