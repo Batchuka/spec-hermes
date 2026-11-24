@@ -29,6 +29,8 @@
 \definecolor{hfReflectBg}{HTML}{F4EEF9}
 \definecolor{hfWord}{HTML}{6B7280}
 \definecolor{hfWordBg}{HTML}{F4F4F5}
+\definecolor{hfUseCase}{HTML}{3F6212}
+\definecolor{hfUseCaseBg}{HTML}{F2F7EA}
 
 \definecolor{hfSource}{HTML}{4A4A4A}  % the plant, a device, a data source
 \definecolor{hfReader}{HTML}{1F5FA8}  % programs that read: clients, screens
@@ -62,14 +64,21 @@
 \newsavebox\hf@measure
 \newlength\hf@need
 % #1 = box environment, #2 = title, #3 = body
+% A box shorter than 60% of the page never splits: if it does not fit, it
+% moves whole to the next page (a heading right before it moves with it).
+% Only a longer box may split, and only if 40% of it fits on this page.
 \newcommand\hf@keeptogether[3]{%
   \sbox\hf@measure{\parbox{\linewidth}{%
     \begin{#1}[unbreakable]{#2}#3\end{#1}}}%
   \setlength\hf@need{\ht\hf@measure}%
   \addtolength\hf@need{\dp\hf@measure}%
-  \setlength\hf@need{0.4\hf@need}%
-  \if@nobreak\else\Needspace*{\hf@need}\fi
-  \begin{#1}{#2}#3\end{#1}}
+  \ifdim\hf@need<0.6\textheight
+    \begin{#1}[unbreakable]{#2}#3\end{#1}%
+  \else
+    \setlength\hf@need{0.4\hf@need}%
+    \if@nobreak\else\Needspace*{\hf@need}\fi
+    \begin{#1}{#2}#3\end{#1}%
+  \fi}
 
 % \begin{history}{1968 · Detroit} ... \end{history}
 \NewDocumentEnvironment{history}{m +b}
@@ -128,11 +137,41 @@
   #1,
 }
 
+% \begin{usecase}{UC-01}{Sales registers a financing proposal}{https://...} ... \end{usecase}
+%   a use case of the system, as the business asked for it, with a link to its issue
+\NewDocumentEnvironment{usecase}{m m m +b}
+  {\def\hf@ucid{#1}\def\hf@uctitle{#2}\def\hf@ucurl{#3}%
+   \hf@keeptogether{hf@usecase}{}{#4}}{}
+\newtcolorbox{hf@usecase}[2][]{
+  hf/box, colback=hfUseCaseBg, colframe=hfUseCase,
+  before upper={\hf@paras{\sffamily\bfseries\footnotesize\color{hfUseCase}%
+    USE CASE\enspace\textperiodcentered\enspace\hf@ucid}\par\smallskip
+    {\large\bfseries\color{hfUseCase}\hf@uctitle}\par\smallskip
+    {\sffamily\footnotesize\href{\hf@ucurl}{\color{hfUseCase}\nolinkurl{\hf@ucurl}}}\par\medskip
+    \setlist{itemsep=1pt,topsep=2pt}},
+  #1,
+}
+% \uc{UC-01 3a}   a reference to a use case (and one of its steps), in the use case color
+\newcommand\uc[1]{{\sffamily\bfseries\small\color{hfUseCase}#1}}
+
+% \incode{hermes-proposals}{e0da534}{validation and the error handler}
+%   the commit where the structure just shown appeared, linked on GitHub
+\newcommand\incode[3]{%
+  \par\nopagebreak\vspace{2pt}%
+  {\raggedleft\sffamily\footnotesize\color{hfWord}%
+   \textbf{IN THE CODE}\enspace\textperiodcentered\enspace
+   \href{https://github.com/Batchuka/#1/commit/#2}{#1\,@\,\texttt{#2}}%
+   \enspace\textperiodcentered\enspace #3\par}%
+  \vspace{6pt}}
+
 % \begin{etymology} ... \end{etymology}   where the words come from
-\newtcolorbox{etymology}{
+\NewDocumentEnvironment{etymology}{+b}
+  {\hf@keeptogether{hf@etymology}{}{#1}}{}
+\newtcolorbox{hf@etymology}[2][]{
   hf/box, colback=hfWordBg, colframe=hfWord, fontupper=\small,
   before upper={\hf@paras{\sffamily\bfseries\footnotesize\color{hfWord}%
     WHERE THE WORDS COME FROM}\par\smallskip},
+  #1,
 }
 
 % ---------------------------------------------------------------------------
