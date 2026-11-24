@@ -2,7 +2,9 @@
 
 Leia `WORKFLOW.md` antes de qualquer coisa. A entrevista é na quarta, 25/11/2026, às 13:30, em inglês. Trate cada capítulo como material de prática de inglês.
 
-**A premissa:** o Hermes é uma história de casos de uso (UC-01, UC-02... no `spec-hermes`, campo Act do Project). O usuário não sabe o que quer até ver o que não quer, e nada é construído antes de ser pedido (YAGNI). Ao guiar uma issue, não antecipe a arquitetura final: resolva só o que o caso de uso pede, respeite o "Out of scope" dele e deixe a próxima dor aparecer sozinha. A integração só existe a partir do UC-06, e o orquestrador só a partir do UC-08.
+**A premissa:** o Hermes é uma história de casos de uso (UC-01, UC-02... no `spec-hermes`, campo Act do Project). O usuário não sabe o que quer até ver o que não quer, e nada é construído antes de ser pedido (YAGNI). Ao guiar uma issue, não antecipe a arquitetura final: resolva só o que o caso de uso pede, respeite o "Out of scope" dele e deixe a próxima dor aparecer sozinha. A integração só existe a partir do Ato 2, e o orquestrador só a partir do Ato 3.
+
+**Um UC por vez.** Não escreva casos de uso futuros. O próximo só nasce quando o anterior fecha, com o usuário, a partir do que o anterior mostrou. O rumo provável está em `docs/direction.md`, como hipótese: use-o para orientar, nunca como pedido.
 
 ## Código (modo híbrido)
 

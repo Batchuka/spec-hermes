@@ -22,7 +22,7 @@ The code repositories start **empty**. Nothing is built, not even a project skel
 | [`hermes-orchestrator`](https://github.com/Batchuka/hermes-orchestrator) | born only if the business ever needs one process across the services |
 | [`spec-hermes`](https://github.com/Batchuka/spec-hermes) | this hub: use cases, book, ADRs, practice, workflow |
 
-The backlog is a story of **use cases** (UC-01, UC-02...), issues in this hub. Implementation issues in the code repositories are created only when working on a use case shows they are needed. Everything is on the [Hermes project](https://github.com/users/Batchuka/projects/13). How I work is in [`WORKFLOW.md`](WORKFLOW.md).
+The backlog is a story of **use cases** (UC-01, UC-02...), issues in this hub, written one at a time: the next one only when the previous one is closed. Where the story will probably go is in [`docs/direction.md`](docs/direction.md), as hypotheses, not requests. Implementation issues in the code repositories are created only when working on a use case shows they are needed. Everything is on the [Hermes project](https://github.com/users/Batchuka/projects/13). How I work is in [`WORKFLOW.md`](WORKFLOW.md).
 
 ## Architecture
 

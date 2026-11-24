@@ -8,14 +8,16 @@ Por isso o Hermes é uma **história de casos de uso**. A arquitetura final (mes
 
 ## A ordem
 
-O [Project](https://github.com/users/Batchuka/projects/13) tem o campo **Act**, e a ordem é a dos casos de uso (UC-01, UC-02...):
+O [Project](https://github.com/users/Batchuka/projects/13) tem o campo **Act**. Os atos são o rumo provável da história, escrito como hipótese em [`docs/direction.md`](docs/direction.md):
 
-1. **Cada setor pede a sua ferramenta** (UC-01 a UC-05): serviços independentes e uma tela.
-2. **"Por que eu tenho que redigitar?"** (UC-06, UC-07): a primeira integração, ingênua; a coreografia nasce sozinha.
-3. **Um mestre** (UC-08 a UC-11): o orquestrador nasce observador e vira mestre.
-4. **O volume chega** (UC-12): 5.000 propostas por dia.
-5. **Gente de fora** (UC-13): login e papéis.
-6. **Mostrar e entregar** (UC-14 a UC-16): AWS, pipeline, extras.
+1. **Cada setor pede a sua ferramenta**: serviços independentes, cada um com sua tela.
+2. **"Por que eu tenho que redigitar?"**: a primeira integração, ingênua; a coreografia nasce sozinha.
+3. **Um mestre**: o orquestrador nasce observador e vira mestre.
+4. **O volume chega**: muitas propostas por dia.
+5. **Gente de fora**: login e papéis.
+6. **Mostrar e entregar**: AWS, pipeline.
+
+**Os casos de uso não são escritos de antemão.** O próximo UC só é escrito quando o anterior fecha, a partir do que ele mostrou. Escrever 16 de uma vez virou roteiro: dois deles ficaram errados antes de chegar a vez deles. Se a história real for por outro caminho, muda o `direction.md`, não a história.
 
 A entrevista técnica na John Deere é na quarta, 25/11/2026, às 13:30, em inglês. Vou na ordem e no meu ritmo; o que estiver pronto até lá, ótimo.
 
@@ -37,7 +39,7 @@ Nada de issue para um UC que ainda não chegou.
 
 ### Capítulo (no `spec-hermes`)
 
-Cada capítulo explica os casos de uso de um ato.
+Os capítulos são o currículo: os assuntos que eu preciso saber explicar, planejados de antemão por ato. Cada capítulo explica os casos de uso que aconteceram naquele ato, quando eles acontecerem.
 
 Os capítulos andam **em ordem, um por vez, no meu ritmo**, sem chats em paralelo. Um chat **Opus** por capítulo, aberto nesta pasta quando eu chegar nele. Os chats das issues de código são **Sonnet**, e eu os crio conforme avanço. **Eu conduzo cada passo.** O Claude não escreve, não commita e não abre PR sem eu mandar. Ao abrir o chat, ele só lê a issue, diz em poucas linhas o que entendeu e espera. Depois, na ordem que eu decidir:
 
