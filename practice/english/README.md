@@ -13,4 +13,5 @@ Every kit has the same five sections:
 | Kit | Chapter | Status |
 | --- | --- | --- |
 | [`00-adr-0001.md`](00-adr-0001.md) | ADR 0001, independent services, one per domain | ready |
+| [`00-adr-0002.md`](00-adr-0002.md) | ADR 0002, each service picks its own database | ready |
 | [`01-the-map.md`](01-the-map.md) | Chapter 1, The Map (UC-01) | ready |
