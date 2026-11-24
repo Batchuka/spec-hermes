@@ -1,12 +1,1096 @@
 \chapter{The Map}
 \label{ch:map}
 
-% Planned:
-% the financing process end to end; the three domain services and what each owns; the web front end that serves them; where each service keeps its data; the story from WM Trading (2023-2024) that this demo rebuilds.
-% Not here: how the services are connected into one process. That is chapter 3.
+% Act 1, UC-01 (spec-hermes#16), built in hermes-proposals#1.
+% YAGNI (Humphrey, Jeffries); use cases (Cockburn) and ADRs (Nygard), with ADR 0001;
+% UC-01 as Sales asked for it; bootstrap (Initializr, Boot 4, Java 21, Maven); why MongoDB;
+% the files and REST (record, controller, POST/GET, 200/400/404, ProblemDetail);
+% what broke (int vs Integer in Jackson 3, @Valid on the element, BigDecimal in a Map);
+% tests (@WebMvcTest, @DataMongoTest with Testcontainers, split test starters).
+% Not here: how the services are connected into one process. That is chapter 7 (One Master).
+% Every code block is copied from hermes-proposals at 9098c81; the terminal output was taken
+% on 2026-11-23 (./mvnw verify: 4 tests green; the app run with -Duser.language=en).
 
-\emph{To be written.}
+This chapter is about the first step of a system: what to build, how to write
+it down, and how the first small service gets built. At the end you will have
+followed one real request from the moment someone asked for it until its tests
+are green.
+
+\section{Build only what was asked}
+
+When you start a new system, it is tempting to design all of it at once. You
+draw the final architecture, with every service, every queue and every screen,
+and then you build it. It feels safe, but it almost never works.
+
+The reason is simple. The people who will use the system do not know exactly
+what they want. They know the pain they have today. They find out what they
+really want only when they use something and see what is wrong with it.
+
+\begin{history}{1990s \textperiodcentered{} Pittsburgh}
+Watts Humphrey spent his career studying why software projects fail. After
+many years at IBM, he went to the Software Engineering Institute at Carnegie
+Mellon University, where he led the work on how teams should build software.
+He wrote down a rule he called the \emph{Requirements Uncertainty Principle}:
+for a new software system, the requirements will not be completely known
+until after the users have used it.
+
+A \emph{requirement} is something the system must do. Humphrey's point is that
+you cannot collect all of them at the start, however many meetings you have.
+Some of them only appear when the user touches the system.
+\end{history}
+
+If the requirements change once people use the system, then every part you
+build before anyone asks for it is a guess. Some guesses will be right. Many
+will be wrong, and a wrong guess costs twice: once to build it and once to
+remove it or work around it.
+
+\begin{history}{late 1990s \textperiodcentered{} Detroit}
+At the end of the 1990s, Kent Beck, Ron Jeffries and Ward Cunningham worked
+together on a payroll system at Chrysler. There they shaped a way of working
+called \emph{Extreme Programming}, or XP. One of its rules has a funny name:
+\emph{YAGNI}, ``You aren't gonna need it.'' Ron Jeffries explained it like
+this: always implement things when you actually need them, never when you just
+foresee that you need them.
+\end{history}
+
+\begin{concept}{YAGNI}
+You build what somebody asked for today, and nothing more. When a new need
+shows up, you change the system then, in the cleanest way you can.
+
+\textbf{What it fixes:} the time and the complexity spent on features nobody
+uses, and the guesses that turn out to be wrong.
+
+\textbf{What it costs:} you will change code you already wrote. That is only
+cheap if the code is clean and has tests, so YAGNI does not work without them.
+\end{concept}
+
+This book follows the rule. Hermes is a financing system: a farmer asks for
+credit to buy a tractor. In the final version, several services work together
+on every proposal. But nobody asks for that on day one. On day one, the Sales
+team has one problem: proposals arrive by e-mail and WhatsApp, and they live in
+a spreadsheet. That problem is where the system starts.
+
+\begin{reflection}{Isn't it irresponsible to start without the final design?}
+It sounds like it. But a final design made on day one is built on
+requirements you don't have yet. What you can do on day one is keep each
+part small, give each part clear limits and test it. Then the design can grow
+when the real needs arrive, and changing it is cheap.
+\end{reflection}
+
+\section{Writing the request down}
+
+If you only build what was asked, you need to know exactly what was asked. A
+conversation in the hallway is not enough. You need to write it down, and you
+need two kinds of documents: one for the request and one for the technical
+decisions.
+
+\subsection*{The use case}
+
+A \emph{use case} describes what one person wants to do with the system, step
+by step, and what can go wrong on the way.
+
+\begin{history}{1987 \textperiodcentered{} Stockholm}
+Ivar Jacobson created use cases while he worked on telephone switching
+systems at Ericsson, and he presented them to the world in 1987. Years later,
+Alistair Cockburn made them practical in his book \emph{Writing Effective Use
+Cases} (2000). Cockburn's format is the one this project uses, in a shorter
+form.
+\end{history}
+
+Every use case in Hermes has the same parts:
+
+\begin{itemize}
+  \item \textbf{Why now:} the pain that made someone ask.
+  \item \textbf{Primary actor:} the person who uses the system, for example a
+        salesperson.
+  \item \textbf{Goal:} what that person wants to get done.
+  \item \textbf{Preconditions:} what must be true before they start.
+  \item \textbf{Main success scenario:} the steps when everything goes well.
+  \item \textbf{Extensions:} what happens when a step goes differently.
+  \item \textbf{Out of scope:} what nobody asked for. This is YAGNI, written
+        down.
+\end{itemize}
+
+The last part is the one people forget. It protects you from yourself. When
+you feel like adding a login screen ``because you will need it'', the use case
+tells you that nobody asked.
+
+\begin{question}{Is a use case the same as a user story?}
+No, but they are cousins. A \emph{user story} is shorter: one sentence that
+says who wants something and why. A common template is ``As a salesperson, I
+want to register a proposal, so that its documents are not lost.'' Stories
+came from Extreme Programming, and they are good for planning work in small
+pieces.
+
+A use case says more. It lists the steps and, above all, what can go wrong.
+In a financing system, most of the work is in what can go wrong: a field
+missing, a document nobody expected. That is why Hermes uses use cases.
+\end{question}
+
+\subsection*{The architecture decision record}
+
+The use case says what the business wants. It says nothing about technology.
+The technical choices go somewhere else: an \emph{architecture decision
+record}, or ADR.
+
+\begin{history}{2011 \textperiodcentered{} Michael Nygard}
+On 15 November 2011, Michael Nygard published a short blog post called
+``Documenting Architecture Decisions''. His problem was a common one. A new
+person joins a project and sees a strange choice. Nobody remembers why it was
+made. The newcomer can either accept it blindly or change it blindly, and
+both are bad. Nygard proposed one short text file for each important
+decision, kept in the repository with the code.
+\end{history}
+
+Nygard's format has a few sections:
+
+\begin{itemize}
+  \item \textbf{Status:} proposed, accepted, or replaced by a later decision.
+  \item \textbf{Context:} the situation and the forces that push you.
+  \item \textbf{Decision:} what you decided, in full sentences.
+  \item \textbf{Consequences:} what becomes easier and what becomes harder.
+\end{itemize}
+
+An ADR is never edited to say something else later. If a decision changes, you
+write a new ADR that replaces the old one. That way, the history of the
+decisions stays readable.
+
+Hermes has one ADR so far, ADR 0001. Its context is the business: three
+domains, each with its own rules and its own data. A \emph{domain} is an area
+of the business, like proposals, credit or contracts. The decision is three
+independent services, one per domain, one web screen for all of them, and one
+schema per service in a single database. A \emph{schema} is a named group of
+tables or collections that belongs to one service. Look at what the ADR does
+not decide: how the services talk to each other. Nobody asked for that yet.
+
+\begin{etymology}
+\emph{Requirement} comes from the Latin \emph{requirere}, ``to ask again'' or
+``to seek''. \emph{Domain} comes from \emph{dominium}, ``property'', the land
+a lord owned. In software, a domain is still the land a part of the system
+owns: its rules and its data.
+\end{etymology}
+
+\section{UC-01: Sales wants one place for proposals}
+
+Here is the first use case of the system, as the Sales team asked for it.
+In this book, use cases sit in green cards like the one below, and when the
+text points to one of them, it uses the same green: \uc{UC-01} is the whole
+use case, \uc{UC-01 3a} is extension 3a of it.
+
+\begin{usecase}{UC-01}{Sales registers a financing proposal}{https://github.com/Batchuka/spec-hermes/issues/16}
+\textbf{Why now:} proposals arrive by e-mail and WhatsApp and live in a
+spreadsheet. Documents get lost, and nobody knows which version is the right
+one.
+
+\textbf{Primary actor:} the salesperson.
+
+\textbf{Goal:} register a farmer's proposal and its documents in one place.
+
+\textbf{Main success scenario:}
+\begin{enumerate}
+  \item The salesperson starts a new proposal.
+  \item They enter the farmer, the equipment, the amount and the term.
+  \item They attach the documents the dealer sent, for example the invoice of
+        the tractor and a proof of income. Each dealer sends different
+        documents.
+  \item The system saves the proposal and shows its number.
+\end{enumerate}
+
+\textbf{Extensions:}
+\begin{itemize}
+  \item[2a.] A required field is missing: the system says which one and saves
+        nothing.
+  \item[3a.] A document type the system has never seen: it is stored anyway,
+        with its own fields.
+\end{itemize}
+
+\textbf{Out of scope:} credit analysis, sending the proposal to anyone, and
+login, because the system runs inside the company network.
+\end{usecase}
+
+Read the extensions again, because they will drive the technical choices.
+\uc{UC-01 3a} says the documents have no fixed shape. \uc{UC-01 2a} says the
+system must reject bad data and explain why. The rest of this chapter is
+about these two lines.
+
+\section{Starting the project}
+
+The service is written in Java with \emph{Spring Boot}. A \emph{framework} is
+code that someone else wrote, which calls your code at the right moments.
+Spring is the most used framework for business applications in Java.
+
+\begin{history}{2002--2014 \textperiodcentered{} Spring}
+In 2002, Rod Johnson wrote a book complaining that building enterprise
+applications in Java had become too heavy. The code that came with the book
+became the Spring Framework, released in 2004. Spring was lighter, but you
+still had to write a lot of configuration to start a project. In 2014, the
+Spring team released Spring Boot, whose idea is ``convention over
+configuration'': it chooses sensible defaults, so a new project runs with
+almost no setup.
+\end{history}
+
+The project started on \emph{Spring Initializr}, the website at
+\texttt{start.spring.io}. You choose a few options and it gives you a ready
+project. The choices were:
+
+\begin{itemize}
+  \item \textbf{Spring Boot 4.2}, the current version.
+  \item \textbf{Java 21}, a long-term support version. Long-term support
+        means it receives fixes for years, which is what companies want.
+  \item \textbf{Maven}, the build tool. A \emph{build tool} downloads the
+        libraries the project needs, compiles the code, runs the tests and
+        packages the result. The list of libraries lives in a file called
+        \texttt{pom.xml}.
+  \item \textbf{Two dependencies:} Web and Spring Data MongoDB. A
+        \emph{dependency} is a library your project uses. Web lets the
+        service answer requests over the network. Spring Data MongoDB lets it
+        talk to the database.
+\end{itemize}
+
+Only two dependencies, because only two were needed. Validation came later,
+when \uc{UC-01 2a} asked for it. Even the project setup follows YAGNI.
+
+The configuration of the service is one file, \texttt{application.yml}, with
+two settings: the name of the application and the address of the database.
+
+\begin{code}[language={}]
+spring:
+  application:
+    name: proposals
+  mongodb:
+    uri: mongodb://localhost:27017/proposals
+\end{code}
+\incode{hermes-proposals}{bcfffe2}{the project from Spring Initializr}
+
+The project also comes with one class, \texttt{ProposalsApplication}, with a
+\texttt{main} method and the annotation \texttt{@SpringBootApplication}. An
+\emph{annotation} is a label that starts with \texttt{@}. It does nothing by
+itself; a framework reads it and acts on it. This one tells Spring Boot: start
+here, look for my classes in this package and configure what you find.
+
+\section{Why MongoDB}
+
+\uc{UC-01 3a} says each dealer sends different documents. An invoice has a
+number, a date and a value. A proof of income has a year and an income. Next
+month a dealer will send a document type nobody has seen, with fields nobody
+knows.
+
+In a \emph{relational database}, like MySQL, data lives in tables, and every
+row of a table has the same columns. You must create the table and its
+columns before you save anything. A document with unknown fields fits badly:
+either you create a new table for each type, or you create one generic table
+of ``name and value'' pairs that is hard to read and hard to query.
+
+\begin{concept}{Document database}
+A \emph{document database} stores each record as a \emph{document}: a set of
+fields that can contain lists and other documents inside it. It looks like
+JSON. \emph{JSON} is the text format that web services use to send data, with
+fields between braces, like \texttt{\{"farmer": "Joao Silva"\}}. Two documents
+in the same collection do not need to have the same fields. A
+\emph{collection} is the group of documents of one kind, like a table in a
+relational database.
+
+\textbf{What it fixes:} data whose shape changes from one record to the
+other, and data that is always read together.
+
+\textbf{What it costs:} the database does not check the shape for you, so the
+code must. And joining data from different collections is weak, so it is a
+bad choice when your data is full of relations.
+\end{concept}
+
+\begin{history}{2007 \textperiodcentered{} New York}
+MongoDB was created by a company called 10gen, founded in 2007 by Dwight
+Merriman, Eliot Horowitz and Kevin Ryan. They had built large web systems and
+were tired of forcing data with changing shapes into tables. The name comes
+from ``humongous'', meaning very large. The first version came out in 2009.
+\end{history}
+
+A proposal fits this model well. It has a farmer, an equipment, an amount, a
+term and a list of documents, and each document has its own fields. All of it
+is read together: when the salesperson opens a proposal, they want its
+documents too. So the documents live \emph{inside} the proposal, in the same
+MongoDB document. This is called \emph{embedding}.
+
+Here is a proposal saved by the service, read with \texttt{mongosh}, the
+MongoDB command line:
+
+\begin{terminal}
+> db.proposals.findOne()
+{
+  _id: ObjectId('6b04ddb7f2c64a5f714571bd'),
+  farmer: 'Joao Silva',
+  equipment: 'Trator 6110J',
+  amount: Decimal128('450000.00'),
+  termMonths: 48,
+  documents: [
+    { type: 'invoice', fields: { number: '123', value: 450000 } },
+    { type: 'never-seen', fields: { anything: 'works' } }
+  ],
+  _class: 'io.github.batchuka.hermes.proposals.model.Proposal'
+}
+\end{terminal}
+
+Two documents of different shapes sit in the same list. The \texttt{\_id} was
+created by MongoDB. The \texttt{\_class} field was added by Spring Data, to
+remember which Java class the document came from. Keep an eye on
+\texttt{amount} and \texttt{value}: they will come back later in this chapter.
+
+Notice what you did not do: you did not create a database, a collection or
+any column. MongoDB creates the database and the collection the first time
+something is written to them. The shape of the data lives in the Java code,
+and nowhere else.
+
+\begin{question}{So MongoDB is better than MySQL?}
+No. They solve different problems. The contracts service, later in the book,
+handles money and installments that must always add up, and it uses MySQL.
+Use a document database when the shape of the data changes and the data is
+read as a whole. Use a relational database when the data has many relations
+and must stay consistent across tables.
+\end{question}
+
+\section{The files, and REST}
+
+The service has five files of its own, in three packages: the model, the
+repository and the controller. A \emph{package} is a folder of related Java
+classes.
+
+The diagram below follows one \texttt{POST} through them, step by step, from
+top to bottom. Each vertical line is one part of the service over time. The
+request can end in two ways: the body is invalid, or it is valid.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm,
+    lbl/.style={hf/note, above, fill=white, inner sep=1pt}]
+  % participants
+  \node[hf/source, minimum width=24mm] (c)   at (0,0)    {salesperson\\(client)};
+  \node[hf/reader, minimum width=24mm] (ctl) at (3.2,0)  {Proposal\\Controller};
+  \node[hf/reader, minimum width=24mm] (adv) at (6.4,0)  {ApiException\\Handler};
+  \node[hf/reader, minimum width=24mm] (rep) at (9.6,0)  {Proposal\\Repository};
+  \node[hf/store]                      (db)  at (12.6,0) {MongoDB};
+  % lifelines
+  \foreach \x/\n in {0/c, 3.2/ctl, 6.4/adv, 9.6/rep, 12.6/db}
+    \draw[hf/lifeline] (\n.south) -- (\x,-7.6);
+  % the request
+  \draw[hf/ask] (0,-1.3) -- node[lbl] {POST /proposals (JSON)} (3.2,-1.3);
+  \node[hf/note, anchor=west, align=left, fill=white, inner sep=1pt] at (3.35,-1.85)
+    {Jackson reads the JSON, \texttt{@Valid} checks the rules};
+  % invalid body
+  \draw[black!30, dashed] (-1.3,-2.35) -- (13.6,-2.35);
+  \node[hf/note, anchor=south west, text=hfAlert, fill=white, inner sep=1pt] at (-1.3,-2.35) {if the body is invalid};
+  \draw[hf/flow, draw=hfAlert] (3.2,-2.95) -- node[lbl] {validation exception} (6.4,-2.95);
+  \draw[hf/answer] (6.4,-3.55) -- node[lbl, pos=0.25] {400 ProblemDetail} (0,-3.55);
+  % valid body
+  \draw[black!30, dashed] (-1.3,-4.15) -- (13.6,-4.15);
+  \node[hf/note, anchor=south west, text=hfStore, fill=white, inner sep=1pt] at (-1.3,-4.15) {if the body is valid};
+  \draw[hf/ask]    (3.2,-4.75) -- node[lbl] {save(proposal)} (9.6,-4.75);
+  \draw[hf/save]   (9.6,-5.35) -- node[lbl] {insert} (12.6,-5.35);
+  \draw[hf/answer] (12.6,-5.95) -- node[lbl] {new \_id} (9.6,-5.95);
+  \draw[hf/answer] (9.6,-6.55) -- node[lbl] {proposal with its id} (3.2,-6.55);
+  \draw[hf/answer] (3.2,-7.15) -- node[lbl] {200 + proposal (JSON)} (0,-7.15);
+\end{tikzpicture}
+\end{center}
+\incode{hermes-proposals}{e0da534}{validation and the error handler join the POST}
+
+The request never reaches the repository when the body is invalid. That is
+how \uc{UC-01 2a} is kept: ``saves nothing''. A \texttt{GET} follows the
+valid path, with \texttt{find} in place of \texttt{save}, and ends in a
+\texttt{404} when the id does not exist.
+
+\subsection*{REST in one page}
+
+The service talks over HTTP. \emph{HTTP} is the protocol of the web: a client
+sends a request to an address, and the server sends back a response with a
+\emph{status code}, a number that says how it went.
+
+\begin{history}{2000 \textperiodcentered{} Irvine, California}
+Roy Fielding was one of the authors of the HTTP specification. In 2000, in his
+doctoral thesis at the University of California, Irvine, he described the
+style of architecture behind the web and named it \emph{REST},
+Representational State Transfer.
+\end{history}
+
+In practice, REST means three things for you:
+
+\begin{itemize}
+  \item Each thing the service holds is a \emph{resource} with an address.
+        All proposals are at \texttt{/proposals}. Proposal 42 is at
+        \texttt{/proposals/42}.
+  \item The HTTP \emph{method} says what you want to do with it.
+        \texttt{POST} creates, \texttt{GET} reads.
+  \item The status code says how it went. \texttt{200} means OK, \texttt{400}
+        means your request is wrong, and \texttt{404} means that resource
+        does not exist.
+\end{itemize}
+
+An address plus a method, like \texttt{POST /proposals}, is called an
+\emph{endpoint}. \uc{UC-01} needs three endpoints: \texttt{POST /proposals} to
+register, \texttt{GET /proposals} to list, and \texttt{GET /proposals/\{id\}}
+to read one.
+
+\subsection*{The model}
+
+The proposal is a Java \emph{record}. A record is a class that only holds
+data. You list the fields once, and Java writes the constructor, the
+accessors, \texttt{equals}, \texttt{hashCode} and \texttt{toString} for you.
+Records arrived in Java 16, in 2021. Before them, people used a library called
+Lombok to avoid writing all that by hand. With records, you don't need it.
+
+\begin{code}
+@Document("proposals")
+public record Proposal(
+        @Id String id,
+        @NotBlank String farmer,
+        @NotBlank String equipment,
+        @NotNull @Positive BigDecimal amount,
+        @NotNull @Positive Integer termMonths,
+        List<@Valid ProposalDocument> documents) {
+}
+
+public record ProposalDocument(@NotBlank String type, Map<String, Object> fields) {
+}
+\end{code}
+\incode{hermes-proposals}{a44c6f5}{the documents inside the proposal}
+\incode{hermes-proposals}{e0da534}{the validation rules}
+
+Read the annotations one by one:
+
+\begin{itemize}
+  \item \texttt{@Document("proposals")} says this record is saved in the
+        \texttt{proposals} collection.
+  \item \texttt{@Id} marks the field that holds the id. When it is empty,
+        MongoDB creates one.
+  \item \texttt{@NotBlank}, \texttt{@NotNull} and \texttt{@Positive} are
+        validation rules. They come from \emph{Bean Validation}, the Java
+        standard for rules on data. On their own they do nothing; something
+        must ask for them to be checked.
+\end{itemize}
+
+The \texttt{amount} is a \texttt{BigDecimal}, not a \texttt{double}. A
+\texttt{double} cannot hold most decimal numbers exactly, and money must be
+exact to the cent. You will see this again in the chapter on money.
+
+\texttt{ProposalDocument} is a type plus a \texttt{Map} of fields. A
+\emph{map} is a list of pairs, each with a name and a value. This is how
+\uc{UC-01 3a} works: any document, with any fields, fits.
+
+\subsection*{The repository}
+
+\begin{code}
+public interface ProposalRepository extends MongoRepository<Proposal, String> {
+}
+\end{code}
+\incode{hermes-proposals}{76c8abd}{the repository, the same since the first commit}
+
+That is the whole file. It is an interface with no methods of its own, and
+yet the service can save, list and find proposals. \texttt{MongoRepository}
+already declares \texttt{save}, \texttt{findAll}, \texttt{findById} and
+others. But an interface is only a list of methods. Somebody has to run them.
+Who?
+
+Nobody writes a class for it, not even Spring. When the service starts,
+Spring Data creates a \emph{proxy}: an object, made while the program runs,
+that implements your interface and stands in front of a real class that does
+the work. You can see it. This small program, written for this book and not
+part of the service, starts the service, asks Spring for the repository and
+prints what it really is:
+
+\begin{code}
+var repository = ctx.getBean(ProposalRepository.class);
+System.out.println(repository.getClass().getName());
+System.out.println(Proxy.isProxyClass(repository.getClass()));
+System.out.println(((Advised) repository).getTargetSource().getTarget().getClass().getName());
+\end{code}
+
+\begin{terminal}
+jdk.proxy2.$Proxy66
+true
+org.springframework.data.mongodb.repository.support.SimpleMongoRepository
+\end{terminal}
+
+The first line is a class with a made-up name, \texttt{\$Proxy66}, created
+by Java while the program was running. It does not exist in any file. The
+second line confirms it is a proxy. The third line is the real worker behind
+it: \texttt{SimpleMongoRepository}, a class that ships with Spring Data and
+knows how to save and find documents in MongoDB.
+
+So when the controller calls \texttt{repository.save(proposal)}, the call
+goes to the proxy first, and the proxy hands it to
+\texttt{SimpleMongoRepository}. The controller never knows. The diagram shows
+the two moments: when the service starts, and when a request arrives.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm,
+    lbl/.style={hf/note, above, fill=white, inner sep=1pt},
+    phase/.style={hf/note, anchor=south west, fill=white, inner sep=1pt}]
+  % participants
+  \node[hf/source, minimum width=24mm] (sp)  at (0,0)    {Spring\\(at startup)};
+  \node[hf/reader, minimum width=24mm] (ctl) at (3.2,0)  {Proposal\\Controller};
+  \node[hf/bus,    minimum width=24mm] (px)  at (6.4,0)  {\$Proxy66\\(the proxy)};
+  \node[hf/reader, minimum width=24mm] (sim) at (9.6,0)  {SimpleMongo\\Repository};
+  \node[hf/store]                      (db)  at (12.6,0) {MongoDB};
+  \foreach \x/\n in {0/sp, 3.2/ctl, 6.4/px, 9.6/sim, 12.6/db}
+    \draw[hf/lifeline] (\n.south) -- (\x,-7.6);
+  % phase 1
+  \draw[black!30, dashed] (-1.3,-1.05) -- (13.6,-1.05);
+  \node[phase] at (-1.3,-1.05) {1. when the service starts};
+  \draw[hf/ask] (0,-1.65) -- node[lbl, pos=0.75] {creates the worker} (9.6,-1.65);
+  \draw[hf/push] (0,-2.25) -- node[lbl, pos=0.7] {creates a proxy in front of it} (6.4,-2.25);
+  \draw[hf/ask] (0,-2.85) -- node[lbl] {gives it the proxy} (3.2,-2.85);
+  % phase 2
+  \draw[black!30, dashed] (-1.3,-3.45) -- (13.6,-3.45);
+  \node[phase] at (-1.3,-3.45) {2. when a request arrives};
+  \draw[hf/ask]    (3.2,-4.05) -- node[lbl] {save(proposal)} (6.4,-4.05);
+  \draw[hf/push]   (6.4,-4.65) -- node[lbl] {passes it on} (9.6,-4.65);
+  \draw[hf/save]   (9.6,-5.25) -- node[lbl] {insert} (12.6,-5.25);
+  \draw[hf/answer] (12.6,-5.85) -- node[lbl] {new \_id} (9.6,-5.85);
+  \draw[hf/answer] (9.6,-6.45) -- node[lbl] {proposal} (6.4,-6.45);
+  \draw[hf/answer] (6.4,-7.05) -- node[lbl] {proposal} (3.2,-7.05);
+\end{tikzpicture}
+\end{center}
+
+The controller only ever talks to the proxy. It thinks it is talking to a
+\texttt{ProposalRepository}, and it is: the proxy implements that interface.
+Everything to the right of the proxy is Spring's business.
+
+\begin{history}{1994--2000 \textperiodcentered{} the proxy}
+In 1994, four authors, Erich Gamma, Richard Helm, Ralph Johnson and John
+Vlissides, published \emph{Design Patterns}, a catalog of 23 solutions that
+kept showing up in object-oriented code. One of them is the \emph{Proxy}: an
+object that has the same interface as another and controls the access to it.
+In 2000, Java 1.3 added \texttt{java.lang.reflect.Proxy}, which creates such
+an object while the program runs, for any interface, without anyone writing
+the class. That is the tool Spring uses here.
+\end{history}
+
+\begin{concept}{Proxy}
+A proxy is an object that sits in front of another one and has the same
+methods. Every call goes through it first. It can pass the call on, change
+it, or do something before and after it.
+
+\textbf{What it fixes:} you get behavior without writing it. Spring Data uses
+a proxy so you write no repository class. Spring uses the same trick to add
+things around your own methods, like opening and closing a database
+transaction, which you will see in the chapter on money.
+
+\textbf{What it costs:} the magic is invisible. A call from inside the same
+object does not go through the proxy, so the extra behavior does not happen,
+and nothing warns you. And when something fails, the stack trace is full of
+classes you never wrote.
+\end{concept}
+
+\subsection*{But why does Spring do this, after all?}
+
+Think of a piece of information that many parts of a program share. Ten
+classes need to read it. If you give each of them the real object, each of
+them can do anything with it: read it, change it, break it. And the day you
+need a rule, like ``only read'' or ``check who is asking'', you have to change
+all ten classes.
+
+There is a simpler way. You don't give anyone the real object. You give each
+class a proxy, with the same methods. The classes call the proxy as if it
+were the real thing, and the rule lives in one place: inside the proxy. The
+ten classes never change. You can do this for one reason: \emph{you} are the
+one who hands out the object, so you choose what to hand out.
+
+Spring is in exactly this position, for the whole program. Look again at the
+controller: it never creates its repository with \texttt{new}. It receives
+the repository in its constructor, from Spring. Every object in the service
+is handed out by Spring. So Spring can do what you did with the shared
+information: hand out a proxy instead of the real object, and nobody notices.
+
+That gives Spring one place, in front of every call, where it can act
+without touching your code. For the repository, it uses that place to
+\emph{answer} the call: there is no class of yours behind the interface, so
+the proxy sends each call to \texttt{SimpleMongoRepository}, which does the
+work. For your own classes, it uses the same place to \emph{add} things around
+the call: open a transaction before, commit it after, check a permission,
+return a value from a cache.
+
+The other options are worse. Spring could make you extend one of its classes,
+and your code would be tied to Spring. Or it could change your code when it
+compiles, which is harder to understand and to debug. With a proxy, your
+classes stay plain Java, and everything Spring adds lives in one object that
+stands in front of them.
+
+\begin{question}{Can I add my own query, like ``find by farmer''?}
+Yes, and you still write no code. Add a method to the interface called
+\texttt{findByFarmer}, which takes the name of a farmer. When the service
+starts, Spring Data
+reads the name of the method, turns it into a MongoDB query, and the proxy
+runs it when you call the method. Nobody asked for this in \uc{UC-01}, so the
+repository does not have it.
+\end{question}
+
+\subsection*{The controller}
+
+The \emph{controller} is the class that receives the HTTP requests.
+
+\begin{code}
+@RestController
+@RequestMapping("/proposals")
+public class ProposalController {
+
+    private final ProposalRepository repository;
+
+    public ProposalController(ProposalRepository repository) {
+        this.repository = repository;
+    }
+
+    @GetMapping
+    public List<Proposal> list() {
+        return repository.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Proposal> get(@PathVariable String id) {
+        return repository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public Proposal create(@Valid @RequestBody Proposal proposal) {
+        return repository.save(proposal);
+    }
+}
+\end{code}
+\incode{hermes-proposals}{dd0610d}{the two GET endpoints and \texttt{@RequestMapping}}
+
+Go from the top:
+
+\begin{itemize}
+  \item \texttt{@RestController} says this class answers HTTP requests, and
+        what each method returns is turned into JSON.
+  \item \texttt{@RequestMapping("/proposals")} puts every endpoint of the
+        class under \texttt{/proposals}, so you write the path once.
+  \item The constructor receives the repository. Spring creates the
+        repository and passes it in. This is called \emph{dependency
+        injection}. When a class has only one constructor, Spring uses it, so
+        you don't need the \texttt{@Autowired} annotation that older code
+        puts everywhere. And the field can be \texttt{final}: it never
+        changes after the object is built.
+  \item \texttt{@PostMapping} with \texttt{@RequestBody} reads the JSON of the
+        request into a \texttt{Proposal}. \texttt{@Valid} asks Bean Validation
+        to check the rules before the method runs.
+  \item \texttt{@GetMapping("/\{id\}")} takes the id from the address.
+\end{itemize}
+
+Look at \texttt{findById}. It returns an \texttt{Optional}: a box that holds
+either a proposal or nothing. If the proposal exists, the answer is
+\texttt{200} with the proposal. If not, \texttt{404}. If you returned the
+proposal directly, an unknown id would give a \texttt{200} with an empty body,
+and the caller could not tell ``found'' from ``not found''.
+
+\subsection*{Saying what is wrong}
+
+\uc{UC-01 2a} says the system must say which field is missing. When
+\texttt{@Valid} fails, Spring throws an exception called
+\texttt{MethodArgumentNotValidException}. Without anything else, the client
+gets a \texttt{400} that does not say much. One small class fixes that:
+
+\begin{code}
+@RestControllerAdvice
+public class ApiExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ProblemDetail handleValidation(MethodArgumentNotValidException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid proposal");
+        Map<String, String> fields = new LinkedHashMap<>();
+        e.getFieldErrors().forEach(error -> fields.put(error.getField(), error.getDefaultMessage()));
+        problem.setProperty("fields", fields);
+        return problem;
+    }
+}
+\end{code}
+\incode{hermes-proposals}{e0da534}{the error handler and \texttt{ProblemDetail}}
+
+The annotation \texttt{@RestControllerAdvice} says this class handles errors
+for all the controllers. The annotation \texttt{@ExceptionHandler} picks which
+error. What the method returns is a
+\texttt{ProblemDetail}, Spring's version of a web standard for error answers,
+first published in 2016 as RFC~7807 and updated in 2023 as RFC~9457. Using a
+standard means any client knows where to find the status, the title and the
+detail. The extra \texttt{fields} map tells the salesperson which field
+failed.
+
+This is what a client gets when it sends an empty proposal:
+
+\begin{terminal}
+$ curl -s -X POST localhost:8080/proposals -H "Content-Type: application/json" -d '{}'
+{
+    "detail": "Invalid proposal",
+    "status": 400,
+    "title": "Bad Request",
+    "fields": {
+        "termMonths": "must not be null",
+        "amount": "must not be null",
+        "equipment": "must not be blank",
+        "farmer": "must not be blank"
+    }
+}
+\end{terminal}
+
+The answer comes with the content type \texttt{application/problem+json},
+which is how a client knows it is a \texttt{ProblemDetail}. Nothing was saved.
+
+\begin{question}{Why did my messages come in Portuguese?}
+Bean Validation writes its messages in the language of the machine that runs
+the service. On a computer set to Portuguese, the first run answered
+\texttt{"não deve ser nulo"}. The output above was taken with the Java
+setting \texttt{-Duser.language=en}. A client should rely on the name of the
+field, not on the text of the message.
+\end{question}
+
+\section{What broke on the way}
+
+Three things did not work the first time. Each one teaches something about
+the tools.
+
+\subsection*{The number that was not there}
+
+At first, \texttt{termMonths} was an \texttt{int}, a
+\emph{primitive} type. A primitive is a plain value, not an object, and it
+can never be \texttt{null}: an \texttt{int} always has a number. When a
+request came without \texttt{termMonths}, the answer was a generic
+\texttt{400}, without the name of the field.
+
+The cause is the order of the work. Before validation runs, a library called
+\emph{Jackson} turns the JSON into a Java object. Spring Boot 4 uses Jackson 3,
+and Jackson 3, by default, refuses to put ``nothing'' into a primitive. It
+fails while reading the JSON, so validation never runs and never gets the
+chance to name the field.
+
+The fix was to use \texttt{Integer}, the object version of \texttt{int}, which
+can be \texttt{null}. Now Jackson reads the request, the field is
+\texttt{null}, and \texttt{@NotNull} says exactly which field is missing.
+
+The diagram shows the same request, without \texttt{termMonths}, in both
+cases.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm, y=1cm,
+    lbl/.style={hf/note, above, fill=white, inner sep=1pt},
+    phase/.style={hf/note, anchor=south west, fill=white, inner sep=1pt}]
+  % participants
+  \node[hf/source, minimum width=24mm] (c)   at (0,0)    {salesperson\\(client)};
+  \node[hf/reader, minimum width=24mm] (jk)  at (3.2,0)  {Jackson\\(reads JSON)};
+  \node[hf/reader, minimum width=24mm] (bv)  at (6.4,0)  {Bean Validation\\(\texttt{@Valid})};
+  \node[hf/reader, minimum width=24mm] (adv) at (9.6,0)  {ApiException\\Handler};
+  \node[hf/reader, minimum width=24mm] (ctl) at (12.6,0) {Proposal\\Controller};
+  \foreach \x/\n in {0/c, 3.2/jk, 6.4/bv, 9.6/adv, 12.6/ctl}
+    \draw[hf/lifeline] (\n.south) -- (\x,-6.7);
+  % with int
+  \draw[black!30, dashed] (-1.3,-1.05) -- (13.9,-1.05);
+  \node[phase, text=hfAlert] at (-1.3,-1.05) {1. \texttt{termMonths} is an \texttt{int}};
+  \draw[hf/ask] (0,-1.65) -- node[lbl] {POST, no termMonths} (3.2,-1.65);
+  \node[hf/note, anchor=west, text=hfAlert, fill=white, inner sep=1pt, align=left]
+    at (3.35,-2.2) {``nothing'' into an \texttt{int}? Jackson fails here};
+  \draw[hf/answer, draw=hfAlert] (3.2,-2.8) -- node[lbl] {generic 400} (0,-2.8);
+  \node[hf/note, anchor=west, fill=white, inner sep=1pt]
+    at (3.35,-2.8) {validation never runs: no field name};
+  % with Integer
+  \draw[black!30, dashed] (-1.3,-3.45) -- (13.9,-3.45);
+  \node[phase, text=hfStore] at (-1.3,-3.45) {2. \texttt{termMonths} is an \texttt{Integer}};
+  \draw[hf/ask] (0,-4.05) -- node[lbl] {POST, no termMonths} (3.2,-4.05);
+  \draw[hf/ask] (3.2,-4.65) -- node[lbl] {termMonths = null} (6.4,-4.65);
+  \draw[hf/flow, draw=hfAlert] (6.4,-5.25) -- node[lbl] {@NotNull fails} (9.6,-5.25);
+  \draw[hf/answer] (9.6,-5.85) -- node[lbl, pos=0.3] {400 + fields.termMonths} (0,-5.85);
+  \node[hf/note, fill=white, inner sep=1pt] at (12.6,-6.4) {never called};
+\end{tikzpicture}
+\end{center}
+
+In both cases the controller is never called, so nothing is saved. The
+difference is the answer: only the second one tells the salesperson which
+field is missing, as \uc{UC-01 2a} asks.
+
+\subsection*{Where \texttt{@Valid} goes}
+
+The documents in the list must be validated too: each one needs a type. The
+first try put \texttt{@Valid} on the list itself. It worked, but Hibernate
+Validator, the library that runs the rules, marks that as deprecated, which
+means ``old, don't use it''. The rule belongs to each element of the list, so
+the annotation goes on the element type: \texttt{List<@Valid
+ProposalDocument>}. Now an error says exactly where it is, for example
+\texttt{documents[0].type}.
+\incode{hermes-proposals}{e0da534}{\texttt{Integer} for the term, \texttt{@Valid} on the element}
+
+\subsection*{The money that lost its cents}
+
+Once the documents were inside the proposal, the database showed something
+strange. Look again at the
+\texttt{mongosh} output. The \texttt{amount} of the proposal was saved as
+\texttt{Decimal128}, MongoDB's exact decimal type. But the \texttt{value} of
+the invoice, inside \texttt{fields}, was sent as \texttt{450000.00} and saved
+as a plain number: \texttt{450000}.
+
+The reason is the \texttt{Map<String, Object>}. For \texttt{amount}, the code
+says it is a \texttt{BigDecimal}, so every tool keeps it exact. Inside the
+map, nobody says what the value is. Jackson sees a number with a decimal
+point and makes it a \texttt{double}, and the exactness is gone.
+\incode{hermes-proposals}{a44c6f5}{where the \texttt{Map} of fields came in}
+
+This is a problem of \emph{data integrity}: the system kept a value that is
+not the value the salesperson sent. \uc{UC-01} asks to register the
+documents, and a document with a wrong number is not registered, even if
+nobody calculates with it today. And a number that enters the database wrong
+cannot be fixed later, because nobody knows anymore what the right one was.
+
+The fix is not in the \texttt{Map}. A \texttt{Map<String, BigDecimal>} would
+break the text fields, like the invoice \texttt{number}. The fix is to tell
+Jackson what to do when it does not know the type: read every number with a
+decimal point as a \texttt{BigDecimal}. That is one setting in
+\texttt{application.yml}:
+
+\begin{code}[language={}]
+spring:
+  jackson:
+    deserialization:
+      use-big-decimal-for-floats: true
+\end{code}
+\incode{hermes-proposals}{FIXME}{decimals stay exact inside document fields}
+
+The same invoice, saved again:
+
+\begin{terminal}
+> db.proposals.findOne().documents
+[
+  {
+    type: 'invoice',
+    fields: { number: '123', value: Decimal128('450000.00'), installments: 3 }
+  }
+]
+\end{terminal}
+
+The \texttt{value} is a \texttt{Decimal128} with its cents. The text stayed
+text, and a whole number, like \texttt{installments}, stayed a whole number.
+
+\begin{reflection}{Doesn't YAGNI say to build only what was asked?}
+It does, but YAGNI is about \emph{features}: screens, endpoints, behavior
+nobody asked for. It never says to accept wrong data. Keeping what the user
+sent, exactly as they sent it, is part of every request, even when nobody
+says it out loud. When you see data being corrupted, you fix it now, without
+waiting for a use case to ask.
+\end{reflection}
+
+\section{Tests}
+
+The last step was the tests. A \emph{test} is code that runs your code and
+checks the result, so you know it works without testing it by hand every
+time. YAGNI needs tests: when you change code later, the tests tell you if you
+broke something.
+
+There are two tests, each on its own \emph{layer}. A layer is one level of
+the service: the web layer receives the requests, the data layer talks to the
+database.
+
+\subsection*{The test dependencies}
+
+In Spring Boot 4, testing changed a little. Before, a single dependency
+brought test support for everything: \texttt{spring-boot-starter-test}. Spring
+Boot 4 split Spring Boot into smaller modules, one per technology, and the test
+support was split the same way. So the \texttt{pom.xml} has one test
+dependency per thing you test, all with \texttt{<scope>test</scope>}, which
+means they are used to run the tests and never shipped with the service:
+
+\begin{itemize}
+  \item \texttt{spring-boot-starter-webmvc-test}: tests for the web layer,
+        with \texttt{MockMvc} and Mockito;
+  \item \texttt{spring-boot-starter-data-mongodb-test}: tests for the data
+        layer with MongoDB;
+  \item \texttt{spring-boot-testcontainers}: lets Spring Boot find the
+        address of a container by itself;
+  \item \texttt{testcontainers-junit-jupiter}: starts and stops the
+        containers around the tests;
+  \item \texttt{testcontainers-mongodb}: the MongoDB container.
+\end{itemize}
+\incode{hermes-proposals}{2db0eb2}{the test dependencies in \texttt{pom.xml}}
+
+The annotations moved too. \texttt{@WebMvcTest}, for example, now lives in the
+package \path{org.springframework.boot.webmvc.test.autoconfigure}. The reason
+is the same as YAGNI: a project only carries the support it uses.
+
+Under all of them there is one more name you will see in every Java test:
+\emph{JUnit}, the framework that finds the methods marked with \texttt{@Test},
+runs them and tells you which ones failed.
+
+\begin{history}{1997 \textperiodcentered{} a flight to Atlanta}
+In 1997, Kent Beck and Erich Gamma were on a flight from Zurich to Atlanta,
+on their way to the OOPSLA conference. To pass the time, they wrote a small
+testing framework for Java and called it JUnit. Beck had already written one
+for Smalltalk, called SUnit. JUnit spread so fast that every language got its
+own copy: NUnit, PyUnit and many others, a family now called \emph{xUnit}.
+Kent Beck is the same person behind Extreme Programming and YAGNI, at the
+start of this chapter.
+\end{history}
+
+\begin{etymology}
+\emph{JUnit}: ``J'' for Java, ``Unit'' for \emph{unit test}, a test of one
+small piece of code, like one class.
+
+\emph{Jupiter}: in 2017, JUnit 5 was split in three parts. The
+\emph{Platform} finds and runs tests, \emph{Vintage} runs the old JUnit~3 and
+4 tests, and \emph{Jupiter} is the new API you write with. Jupiter is the
+fifth planet from the Sun, and it was JUnit 5. The name stayed in the
+versions after it. \texttt{testcontainers-junit-jupiter} is the bridge between
+Testcontainers and Jupiter.
+
+\emph{Mock}: in English, an imitation, as in a \emph{mock exam}. The term
+\emph{mock object} comes from a paper by Tim Mackinnon, Steve Freeman and
+Philip Craig, presented at the XP2000 conference. \emph{Mockito}, the library
+that makes the mocks, was started around 2007 by Szczepan Faber, and its
+name is a joke on \emph{mojito}, the drink.
+
+\emph{WebMvc}: MVC is \emph{Model-View-Controller}, a way to split a program
+with a screen into data, what is shown, and what receives the user's action.
+Trygve Reenskaug created it at Xerox PARC in 1978 and 1979. Spring has two
+web frameworks: Web MVC, the classic one, and WebFlux, the reactive one, from
+2017. Spring Boot 4 renamed \texttt{spring-boot-starter-web} to
+\texttt{spring-boot-starter-webmvc}, so the name says which one you use.
+
+\emph{Container}: from the shipping container. In 1956, Malcom McLean sent
+the first ship loaded with standard containers. After that, any ship, train
+or truck could carry any box without knowing what was inside. A software
+container does the same for a program: one box, with everything it needs,
+that runs the same on any machine.
+\end{etymology}
+
+Now the two tests.
+
+\subsection*{The web layer}
+
+\begin{code}
+@WebMvcTest(ProposalController.class)
+class ProposalControllerTest {
+
+    @Autowired
+    MockMvc mockMvc;
+
+    @MockitoBean
+    ProposalRepository repository;
+
+    @Test
+    void anEmptyProposalIsRejectedAndNothingIsSaved() throws Exception {
+        mockMvc.perform(post("/proposals").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.farmer").exists())
+                .andExpect(jsonPath("$.fields.termMonths").exists());
+
+        verifyNoInteractions(repository);
+    }
+}
+\end{code}
+
+\texttt{@WebMvcTest} starts only the web layer: the controller and the error
+handler. No database. \texttt{MockMvc} sends fake HTTP requests to it, without
+a real network. The repository is a \emph{mock}: a fake object that records
+how it was called. The test sends an empty proposal, checks the \texttt{400}
+and the names of the missing fields, and then checks that the repository was
+never touched. That last line is \uc{UC-01 2a}: ``saves nothing''.
+
+\subsection*{The data layer}
+
+For the repository, a mock would prove nothing. The question is whether a
+proposal with an unknown document really goes into MongoDB and comes back with
+its fields. Only a real MongoDB can answer that.
+
+\begin{history}{2015 \textperiodcentered{} Testcontainers}
+In 2015, Richard North started a Java library called Testcontainers. Its idea
+is to start real databases and other services inside \emph{Docker
+containers} during the tests, and throw them away at the end. A
+\emph{container} is a small, isolated package that runs a program with
+everything it needs, so a real MongoDB starts in seconds on any machine that
+has Docker.
+\end{history}
+
+\begin{code}
+@DataMongoTest
+@Testcontainers
+class ProposalRepositoryTest {
+
+    @Container
+    @ServiceConnection
+    static MongoDBContainer mongo = new MongoDBContainer("mongo:8");
+
+    @Autowired
+    ProposalRepository repository;
+
+    @Test
+    void savesAProposalWithADocumentOfATypeNobodyHasSeen() {
+        var document = new ProposalDocument("never-seen", Map.of("anything", "works"));
+        var proposal = new Proposal(null, "Joao Silva", "Trator 6110J",
+                new BigDecimal("450000.00"), 48, List.of(document));
+
+        var saved = repository.save(proposal);
+        var found = repository.findById(saved.id()).orElseThrow();
+
+        assertThat(found.documents().get(0).type()).isEqualTo("never-seen");
+        assertThat(found.documents().get(0).fields()).containsEntry("anything", "works");
+    }
+}
+\end{code}
+\incode{hermes-proposals}{2db0eb2}{both tests}
+
+\texttt{@DataMongoTest} starts only the data layer. \texttt{@Container}
+starts MongoDB 8 in Docker. \texttt{@ServiceConnection} tells Spring Boot the
+address of that MongoDB, so you configure nothing. The test is \uc{UC-01 3a}:
+a type nobody has seen is saved and comes back with its own fields.
+
+The first run took about 47 seconds, because Docker had to download the
+MongoDB image. The next runs are much faster.
+
+Running all the tests is one command:
+
+\begin{terminal}
+$ ./mvnw verify
+...
+[INFO] Results:
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+\end{terminal}
+
+Four tests, all green: the two of the web layer, the one of the data layer,
+and the \texttt{contextLoads} test that came with the project, which only
+checks that the service starts.
 
 \section*{In the interview}
 
-% Two to four interview boxes: \begin{interview}{question} model answer, 60 to 90 seconds \end{interview}
+\begin{interview}{How do you decide what to build first?}
+I start from the pain of the people who asked. In this project the first
+request came from Sales: proposals arrived by e-mail and WhatsApp and lived in
+a spreadsheet, and documents got lost. So the first thing I built was a small
+service to register a proposal and its documents. Nothing else. I wrote the
+request as a use case, with the main steps, what can go wrong, and a section
+called ``out of scope'' for what nobody asked for. Login, credit analysis and
+integration with other systems were all out of scope. I follow YAGNI: you
+aren't gonna need it. Users only find out what they really want after they
+use the system, so anything I build before they ask is a guess. The way I keep
+that safe is small versions and tests. When the next request comes, I can
+change the code without fear.
+\end{interview}
+
+\begin{interview}{Why did you choose MongoDB for this service?}
+Because of the shape of the data. A financing proposal comes with documents,
+and every dealer sends different ones: an invoice, a proof of income, and
+sometimes a type we have never seen. In a relational database I would need a
+table per document type, or a generic key-value table that is hard to query.
+In MongoDB the documents live inside the proposal, in one document, and each
+one keeps its own fields. The proposal is always read as a whole, so
+embedding fits. I didn't use MongoDB for everything, though. The contracts
+service handles money and installments, and that needs transactions across
+tables, so it uses MySQL. I pick the database per service, based on the data
+that service owns.
+\end{interview}
+
+\begin{interview}{How do you design and test a REST endpoint?}
+I start from the resource and the use case. For proposals I have
+\texttt{POST /proposals} to create, \texttt{GET /proposals} to list and
+\texttt{GET /proposals/\{id\}} to read one. The status codes matter: 200 when
+it works, 404 when the id doesn't exist, and 400 when the input is wrong. For
+the 400, I validate the body with Bean Validation, and an exception handler
+returns a ProblemDetail, the standard format for errors, with the name of
+each field that failed. Then I test each layer on its own. A WebMvcTest
+checks the controller with the repository mocked, so I can prove an invalid
+proposal is rejected and nothing is saved. For the repository I don't mock;
+I use Testcontainers with a real MongoDB, because a mock can't tell me if the
+mapping really works.
+\end{interview}
