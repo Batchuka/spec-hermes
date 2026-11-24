@@ -1,6 +1,6 @@
 # 0001. Independent services, one per business domain
 
-Status: accepted · Issue: #1
+Status: accepted, amended by [0002](0002-database-per-service.md) (one database per service, not one instance) · Issue: #1
 
 ## Context
 

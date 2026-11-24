@@ -1,0 +1,5 @@
+<nav>
+  <a routerLink="/sales" routerLinkActive="active">Sales</a>
+  <a routerLink="/credit" routerLinkActive="active">Credit</a>
+</nav>
+<router-outlet />
