@@ -39,7 +39,7 @@ Nada de issue para um UC que ainda não chegou.
 
 ### Capítulo (no `spec-hermes`)
 
-Os capítulos são o currículo: os assuntos que eu preciso saber explicar, planejados de antemão por ato. Cada capítulo explica os casos de uso que aconteceram naquele ato, quando eles acontecerem.
+Os capítulos também não são planejados de antemão. Um capítulo nasce quando um caso de uso mostra o que precisa ser explicado, e a issue dele é criada nesse momento, ligada ao UC. Os assuntos que provavelmente vão aparecer (filas, orquestrador, login, AWS) estão em [`docs/direction.md`](docs/direction.md), como hipótese.
 
 Os capítulos andam **em ordem, um por vez, no meu ritmo**, sem chats em paralelo. Um chat **Opus** por capítulo, aberto nesta pasta quando eu chegar nele. Os chats das issues de código são **Sonnet**, e eu os crio conforme avanço. **Eu conduzo cada passo.** O Claude não escreve, não commita e não abre PR sem eu mandar. Ao abrir o chat, ele só lê a issue, diz em poucas linhas o que entendeu e espera. Depois, na ordem que eu decidir:
 

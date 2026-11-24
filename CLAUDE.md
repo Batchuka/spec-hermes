@@ -29,6 +29,7 @@ Não assine nada: nenhum `Co-Authored-By` nos commits e nenhum rodapé "Generate
 
 ## Livro (issues de capítulo)
 
+- Não planeje capítulos futuros. Um capítulo nasce quando um caso de uso mostra o que precisa ser explicado, e só com o ok do usuário.
 - LaTeX em `book/`, um arquivo por capítulo em `book/chapters/`. MiKTeX e latexmk estão instalados. Depois de cada mudança, recompile o PDF e atualize o índice em `book/README.md`.
 - Nas issues de capítulo, o Claude escreve o trecho que o usuário pedir, a partir do que ele contar sobre o que sabe e o que fez de verdade (na WM ou em outros lugares). Nunca invente experiência dele.
 - História real: pessoas, datas, o problema que forçou cada ideia. Nada de histórias inventadas.
