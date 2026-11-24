@@ -8,5 +8,14 @@
     { "name": "hermes-web", "path": "../hermes-web" },
     { "name": "hermes-infra", "path": "../hermes-infra" }
   ],
-  "settings": {}
+  "settings": {
+    // The hermes.* properties are ours, so Spring has no metadata for them.
+    "spring-boot.ls.problem.application-yaml.YAML_UNKNOWN_PROPERTY": "IGNORE",
+    "spring-boot.ls.problem.application-properties.PROP_UNKNOWN_PROPERTY": "IGNORE",
+    // We stay on the Spring Boot version chosen at scaffold time.
+    "spring-boot.ls.problem.version-validation.UPDATE_LATEST_MINOR_VERSION": "IGNORE",
+    "spring-boot.ls.problem.version-validation.UPDATE_LATEST_PATCH_VERSION": "IGNORE",
+    // Reload Maven projects on pom.xml changes without asking.
+    "java.configuration.updateBuildConfiguration": "automatic"
+  }
 }
