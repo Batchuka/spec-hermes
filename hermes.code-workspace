@@ -16,6 +16,15 @@
     "spring-boot.ls.problem.version-validation.UPDATE_LATEST_MINOR_VERSION": "IGNORE",
     "spring-boot.ls.problem.version-validation.UPDATE_LATEST_PATCH_VERSION": "IGNORE",
     // Reload Maven projects on pom.xml changes without asking.
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    // Format Java on save, with tabs like the Spring Initializr code.
+    "[java]": {
+      "editor.defaultFormatter": "redhat.java",
+      "editor.formatOnSave": true,
+      "editor.insertSpaces": false
+    },
+    "editor.formatOnSave": false,
+    "js/ts.tsdk.path": "hermes-web\\node_modules\\typescript\\lib",
+    "java.debug.settings.onBuildFailureProceed": true
   }
 }
